@@ -4,6 +4,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:RamaFemenina"
+    xmlns:models="using:RamaFemenina.Models"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
@@ -31,6 +32,7 @@
         <Grid Grid.Row="1" Padding="24,0,24,24">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
@@ -43,55 +45,86 @@
                 <AppBarButton 
                     Icon="Edit" 
                     Label="Editar"
+                    Click="BtnEditarPaciente_Click"
                     IsEnabled="{x:Bind IsPatientSelected, Mode=OneWay}"/>
                 <AppBarButton 
                     Icon="Delete" 
                     Label="Eliminar"
+                    Click="BtnEliminarPaciente_Click"
                     IsEnabled="{x:Bind IsPatientSelected, Mode=OneWay}"/>
-                <AppBarSeparator/>
+                <!--  Donaciones  -->
                 <AppBarButton 
-                    Icon="Find" 
-                    Label="Buscar"/>
+                    Icon="Calculator" 
+                    Label="Registrar Donación"
+                    Click="BtnRegistrarDonacion_Click"
+                    IsEnabled="{x:Bind IsPatientSelected, Mode=OneWay}"/>
             </CommandBar>
 
+            <!-- Search Bar -->
+            <AutoSuggestBox
+                x:Name="SearchBox"
+                Grid.Row="1"
+                PlaceholderText="Buscar por nombre, cédula, teléfono, área..."
+                QueryIcon="Find"
+                Margin="0,8,0,8"
+                TextChanged="SearchBox_TextChanged"/>
+
             <!-- DataGrid / ListView -->
-            <Grid Grid.Row="1" Margin="0,8,0,0">
-                <ListView
-                    x:Name="PacientesListView"
-                    SelectionMode="Single"
-                    SelectionChanged="PacientesListView_SelectionChanged">
-                    <ListView.Header>
-                        <Grid Padding="12,8" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="2*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="ID" FontWeight="SemiBold" Grid.Column="0"/>
-                            <TextBlock Text="Nombre Completo" FontWeight="SemiBold" Grid.Column="1"/>
-                            <TextBlock Text="Teléfono" FontWeight="SemiBold" Grid.Column="2"/>
-                            <TextBlock Text="Fecha Registro" FontWeight="SemiBold" Grid.Column="3"/>
-                        </Grid>
-                    </ListView.Header>
-                    
-                    <ListView.ItemTemplate>
-                        <DataTemplate x:DataType="local:Paciente">
-                            <Grid Padding="12,8">
+            <Grid Grid.Row="2" Margin="0,8,0,0">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <ListView
+                        x:Name="PacientesListView"
+                        SelectionMode="Single"
+                        SelectionChanged="PacientesListView_SelectionChanged">
+                        <ListView.Header>
+                            <Grid Padding="12,8" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" MinWidth="1200">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="2*"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="250"/>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="80"/>
+                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="*" MinWidth="150"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="{x:Bind Id}" Grid.Column="0"/>
-                                <TextBlock Text="{x:Bind NombreCompleto}" Grid.Column="1"/>
-                                <TextBlock Text="{x:Bind Telefono}" Grid.Column="2"/>
-                                <TextBlock Text="{x:Bind FechaRegistro}" Grid.Column="3"/>
+                                <TextBlock Text="Cédula" FontWeight="SemiBold" Grid.Column="0"/>
+                                <TextBlock Text="Nombre Completo" FontWeight="SemiBold" Grid.Column="1"/>
+                                <TextBlock Text="Teléfono" FontWeight="SemiBold" Grid.Column="2"/>
+                                <TextBlock Text="Celular" FontWeight="SemiBold" Grid.Column="3"/>
+                                <TextBlock Text="N° Registro" FontWeight="SemiBold" Grid.Column="4"/>
+                                <TextBlock Text="Sexo" FontWeight="SemiBold" Grid.Column="5"/>
+                                <TextBlock Text="Área" FontWeight="SemiBold" Grid.Column="6"/>
+                                <TextBlock Text="Observaciones" FontWeight="SemiBold" Grid.Column="7"/>
                             </Grid>
-                        </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
+                        </ListView.Header>
+                        
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="models:Paciente">
+                                <Grid Padding="12,8" MinWidth="1200">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="250"/>
+                                        <ColumnDefinition Width="120"/>
+                                        <ColumnDefinition Width="120"/>
+                                        <ColumnDefinition Width="120"/>
+                                        <ColumnDefinition Width="80"/>
+                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="*" MinWidth="150"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{x:Bind cedula}" Grid.Column="0"/>
+                                    <TextBlock Text="{x:Bind nombre}" Grid.Column="1" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{x:Bind telefono}" Grid.Column="2"/>
+                                    <TextBlock Text="{x:Bind celular}" Grid.Column="3"/>
+                                    <TextBlock Text="{x:Bind nrecord}" Grid.Column="4"/>
+                                    <TextBlock Text="{x:Bind sexo}" Grid.Column="5"/>
+                                    <TextBlock Text="{x:Bind area}" Grid.Column="6" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{x:Bind observaciones}" Grid.Column="7" TextTrimming="CharacterEllipsis"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </ScrollViewer>
 
                 <!-- Empty State -->
                 <StackPanel 

@@ -18,6 +18,8 @@ public sealed partial class HomeWindow : Window
         if (NavView != null && NavView.MenuItems.Count > 0)
         {
             NavView.SelectedItem = NavView.MenuItems[0];
+            // Navegar a la primera página
+            ContentFrame.Navigate(typeof(PacientesPage));
         }
     }
 
@@ -38,16 +40,16 @@ public sealed partial class HomeWindow : Window
             switch (tag)
             {
                 case "Pacientes":
-                    ShowPlaceholder("Pacientes", "👥");
+                    ContentFrame.Navigate(typeof(PacientesPage));
                     break;
                 case "Donaciones":
-                    ShowPlaceholder("Donaciones", "💰");
+                    ContentFrame.Navigate(typeof(DonacionesPage));
                     break;
                 case "Cheques":
-                    ShowPlaceholder("Cheques", "📄");
+                    ContentFrame.Navigate(typeof(ChequesPage));
                     break;
                 case "Recibos":
-                    ShowPlaceholder("Recibos", "🧾");
+                    ContentFrame.Navigate(typeof(ReciboPage));
                     break;
             }
         }
