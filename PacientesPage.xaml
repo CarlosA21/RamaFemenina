@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="RamaFemenina.PacientesPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:RamaFemenina"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Padding="24,24,24,16">
+            <TextBlock 
+                Text="Gestión de Pacientes"
+                Style="{StaticResource TitleTextBlockStyle}"
+                Margin="0,0,0,8"/>
+            <TextBlock 
+                Text="Administra la información de los pacientes"
+                Style="{StaticResource BodyTextBlockStyle}"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </StackPanel>
+
+        <!-- Content -->
+        <Grid Grid.Row="1" Padding="24,0,24,24">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Toolbar -->
+            <CommandBar Grid.Row="0" DefaultLabelPosition="Right" Background="Transparent">
+                <AppBarButton 
+                    Icon="Add" 
+                    Label="Nuevo Paciente"
+                    Click="BtnNuevoPaciente_Click"/>
+                <AppBarButton 
+                    Icon="Edit" 
+                    Label="Editar"
+                    IsEnabled="{x:Bind IsPatientSelected, Mode=OneWay}"/>
+                <AppBarButton 
+                    Icon="Delete" 
+                    Label="Eliminar"
+                    IsEnabled="{x:Bind IsPatientSelected, Mode=OneWay}"/>
+                <AppBarSeparator/>
+                <AppBarButton 
+                    Icon="Find" 
+                    Label="Buscar"/>
+            </CommandBar>
+
+            <!-- DataGrid / ListView -->
+            <Grid Grid.Row="1" Margin="0,8,0,0">
+                <ListView
+                    x:Name="PacientesListView"
+                    SelectionMode="Single"
+                    SelectionChanged="PacientesListView_SelectionChanged">
+                    <ListView.Header>
+                        <Grid Padding="12,8" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="2*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="ID" FontWeight="SemiBold" Grid.Column="0"/>
+                            <TextBlock Text="Nombre Completo" FontWeight="SemiBold" Grid.Column="1"/>
+                            <TextBlock Text="Teléfono" FontWeight="SemiBold" Grid.Column="2"/>
+                            <TextBlock Text="Fecha Registro" FontWeight="SemiBold" Grid.Column="3"/>
+                        </Grid>
+                    </ListView.Header>
+                    
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="local:Paciente">
+                            <Grid Padding="12,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="2*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{x:Bind Id}" Grid.Column="0"/>
+                                <TextBlock Text="{x:Bind NombreCompleto}" Grid.Column="1"/>
+                                <TextBlock Text="{x:Bind Telefono}" Grid.Column="2"/>
+                                <TextBlock Text="{x:Bind FechaRegistro}" Grid.Column="3"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+
+                <!-- Empty State -->
+                <StackPanel 
+                    x:Name="EmptyState"
+                    Visibility="Collapsed"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Spacing="16">
+                    <TextBlock 
+                        Text="👥"
+                        FontSize="72"
+                        HorizontalAlignment="Center"/>
+                    <TextBlock 
+                        Text="No hay pacientes registrados"
+                        FontSize="20"
+                        FontWeight="SemiBold"
+                        HorizontalAlignment="Center"/>
+                    <TextBlock 
+                        Text="Haz clic en 'Nuevo Paciente' para comenzar"
+                        HorizontalAlignment="Center"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Grid>
+</Page>

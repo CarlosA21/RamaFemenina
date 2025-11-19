@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="RamaFemenina.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:RamaFemenina"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="RamaFemenina">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
+
+    <Grid Background="Transparent">
+        <Border
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Width="460"
+            CornerRadius="16"
+            Padding="40"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            Translation="0,0,32">
+
+            <StackPanel Spacing="20">
+                <!-- Logo/Icon Area -->
+                <Viewbox Width="64" Height="64" HorizontalAlignment="Center">
+                    <SymbolIcon Symbol="Contact" Foreground="{ThemeResource AccentFillColorDefaultBrush}" />
+                </Viewbox>
+
+                <!-- Title -->
+                <TextBlock 
+                    Text="Bienvenido"
+                    FontSize="28"
+                    FontWeight="Bold"
+                    HorizontalAlignment="Center"
+                    Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+
+                <TextBlock 
+                    Text="Ingresa tus credenciales para continuar"
+                    FontSize="14"
+                    HorizontalAlignment="Center"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Margin="0,-15,0,0" />
+
+                <!-- Username Field -->
+                <StackPanel Spacing="8">
+                    <TextBlock 
+                        Text="Usuario"
+                        FontSize="14"
+                        FontWeight="SemiBold"
+                        Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                    <TextBox 
+                        x:Name="txtUsername"
+                        PlaceholderText="Ingrese su usuario"
+                        Height="40"
+                        CornerRadius="8" />
+                </StackPanel>
+
+                <!-- Password Field -->
+                <StackPanel Spacing="8">
+                    <TextBlock 
+                        Text="Contraseña"
+                        FontSize="14"
+                        FontWeight="SemiBold"
+                        Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                    <PasswordBox 
+                        x:Name="pwdPassword"
+                        PlaceholderText="Ingrese su contraseña"
+                        Height="40"
+                        CornerRadius="8" />
+                </StackPanel>
+
+                <!-- Error/Success Message -->
+                <TextBlock 
+                    x:Name="txtMessage"
+                    TextWrapping="Wrap"
+                    HorizontalAlignment="Center"
+                    FontSize="13"
+                    FontWeight="SemiBold"
+                    Margin="0,-8,0,0" />
+
+                <!-- Action Buttons -->
+                <StackPanel Spacing="12" Margin="0,8,0,0">
+                    <Button 
+                        x:Name="btnAccept"
+                        Content="Iniciar Sesión"
+                        HorizontalAlignment="Stretch"
+                        Height="44"
+                        CornerRadius="8"
+                        FontSize="15"
+                        FontWeight="SemiBold"
+                        Style="{StaticResource AccentButtonStyle}"
+                        Click="BtnAccept_Click" />
+
+                    <Button 
+                        x:Name="btnExit"
+                        Content="Salir"
+                        HorizontalAlignment="Stretch"
+                        Height="44"
+                        CornerRadius="8"
+                        FontSize="15"
+                        Click="BtnExit_Click" />
+                </StackPanel>
+
+                <!-- Footer -->
+                <TextBlock 
+                    Text="Rama Femenina © 2024"
+                    FontSize="12"
+                    HorizontalAlignment="Center"
+                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                    Margin="0,8,0,0" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

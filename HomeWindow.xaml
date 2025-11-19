@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="RamaFemenina.HomeWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:RamaFemenina"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="Rama Femenina - Sistema de Gestión">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
+
+    <NavigationView 
+        x:Name="NavView"
+        IsBackButtonVisible="Collapsed"
+        IsPaneToggleButtonVisible="True"
+        IsSettingsVisible="True"
+        PaneDisplayMode="Left"
+        OpenPaneLength="280"
+        CompactPaneLength="56"
+        SelectionChanged="NavView_SelectionChanged">
+
+        <NavigationView.MenuItems>
+            <!-- Pacientes -->
+            <NavigationViewItem 
+                Content="Pacientes" 
+                Tag="Pacientes">
+                <NavigationViewItem.Icon>
+                    <FontIcon Glyph="&#xE716;"/>
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <!-- Clientes -->
+
+            <NavigationViewItem 
+                Content="Clientes" 
+                Tag="Clientes">
+                <NavigationViewItem.Icon>
+                    <FontIcon Glyph="&#xE716;"/>
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+
+            <!-- Donaciones -->
+            <NavigationViewItem 
+                Content="Donaciones" 
+                Tag="Donaciones">
+                <NavigationViewItem.Icon>
+                    <FontIcon Glyph="&#xE8A1;"/>
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+
+            <!-- Cheques -->
+            <NavigationViewItem 
+                Content="Cheques" 
+                Tag="Cheques">
+                <NavigationViewItem.Icon>
+                    <FontIcon Glyph="&#xE8C7;"/>
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+
+            <!-- Recibos -->
+            <NavigationViewItem 
+                Content="Recibos" 
+                Tag="Recibos">
+                <NavigationViewItem.Icon>
+                    <FontIcon Glyph="&#xE8A5;"/>
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <!-- Facturacion -->
+            <NavigationViewItem 
+                Content="Facturación" 
+                Tag="Facturacion">
+                <NavigationViewItem.Icon>
+                    <FontIcon Glyph="&#xE8C8;"/>
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+            
+        </NavigationView.MenuItems>
+
+        <NavigationView.PaneHeader>
+            <StackPanel Orientation="Horizontal" 
+                        Spacing="12" 
+                        Margin="16,12">
+                <PersonPicture Width="40" Height="40" />
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock 
+                        Text="Rama Femenina"
+                        FontWeight="SemiBold"
+                        FontSize="16"
+                        Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                    <TextBlock 
+                        x:Name="txtUserName"
+                        Text="Usuario"
+                        FontSize="12"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+            </StackPanel>
+        </NavigationView.PaneHeader>
+
+        <NavigationView.PaneFooter>
+            <StackPanel>
+                <NavigationViewItem 
+                    Content="Cerrar Sesión"
+                    Tag="Logout"
+                    Tapped="LogoutButton_Tapped">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE7E8;"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+            </StackPanel>
+        </NavigationView.PaneFooter>
+
+        <!-- Content Frame -->
+        <Frame x:Name="ContentFrame" />
+    </NavigationView>
+</Window>

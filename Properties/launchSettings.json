@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "RamaFemenina (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "RamaFemenina (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
