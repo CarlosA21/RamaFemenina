@@ -33,7 +33,6 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
@@ -61,49 +60,22 @@
                     Click="BtnVerPaciente_Click"
                     IsEnabled="{x:Bind IsDonacionSelected, Mode=OneWay}"/>
                 <AppBarButton 
-                    Icon="Page" 
-                    Label="Generar Reporte"
-                    Click="BtnGenerarReporte_Click"/>
+                    Icon="Refresh" 
+                    Label="Actualizar"
+                    Click="BtnActualizar_Click"/>
             </CommandBar>
 
             <!-- Search Bar -->
             <AutoSuggestBox
                 x:Name="SearchBox"
                 Grid.Row="1"
-                PlaceholderText="Buscar por paciente, procedimiento, monto..."
+                PlaceholderText="Buscar por paciente, cédula, procedimiento, monto..."
                 QueryIcon="Find"
-                Margin="0,8,0,8"
+                Margin="0,8,0,16"
                 TextChanged="SearchBox_TextChanged"/>
 
-            <!-- Filter Panel -->
-            <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12" Margin="0,0,0,12">
-                <ComboBox 
-                    x:Name="FiltroFechaCombo"
-                    Header="Filtrar por:"
-                    PlaceholderText="Todas las fechas"
-                    MinWidth="200"
-                    SelectionChanged="FiltroFecha_SelectionChanged">
-                    <ComboBoxItem Content="Todas las fechas" IsSelected="True"/>
-                    <ComboBoxItem Content="Último mes"/>
-                    <ComboBoxItem Content="Últimos 3 meses"/>
-                    <ComboBoxItem Content="Último año"/>
-                    <ComboBoxItem Content="Rango personalizado..."/>
-                </ComboBox>
-
-                <ComboBox 
-                    x:Name="OrdenarCombo"
-                    Header="Ordenar por:"
-                    MinWidth="180"
-                    SelectionChanged="Ordenar_SelectionChanged">
-                    <ComboBoxItem Content="Fecha (Reciente)" IsSelected="True"/>
-                    <ComboBoxItem Content="Fecha (Antigua)"/>
-                    <ComboBoxItem Content="Monto (Mayor)"/>
-                    <ComboBoxItem Content="Monto (Menor)"/>
-                </ComboBox>
-            </StackPanel>
-
             <!-- DataGrid / ListView -->
-            <Grid Grid.Row="3" Margin="0,8,0,0">
+            <Grid Grid.Row="2" Margin="0,8,0,0">
                 <Border 
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -129,7 +101,7 @@
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="ID" FontWeight="SemiBold" Grid.Column="0"/>
                                     <TextBlock Text="Fecha" FontWeight="SemiBold" Grid.Column="1"/>
-                                    <TextBlock Text="ID Paciente" FontWeight="SemiBold" Grid.Column="2"/>
+                                    <TextBlock Text="Cédula Paciente" FontWeight="SemiBold" Grid.Column="2"/>
                                     <TextBlock Text="Procedimiento" FontWeight="SemiBold" Grid.Column="3"/>
                                     <TextBlock Text="Observaciones" FontWeight="SemiBold" Grid.Column="4"/>
                                     <TextBlock Text="Monto Solicitado" FontWeight="SemiBold" Grid.Column="5"/>
@@ -218,7 +190,7 @@
             </Grid>
 
             <!-- Summary Panel -->
-            <Grid Grid.Row="4" Margin="0,16,0,0">
+            <Grid Grid.Row="3" Margin="0,16,0,0">
                 <Border 
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"

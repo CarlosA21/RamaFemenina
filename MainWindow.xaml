@@ -14,6 +14,22 @@
     </Window.SystemBackdrop>
 
     <Grid Background="Transparent">
+        <!-- Botón flotante para gestión de usuarios (esquina superior derecha) -->
+        <Button
+            x:Name="btnGestionUsuarios"
+            Content="👥 Gestión de Usuarios"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Top"
+            Margin="24"
+            Padding="16,10"
+            CornerRadius="8"
+            Click="BtnGestionUsuarios_Click"
+            ToolTipService.ToolTip="Administrar usuarios del sistema">
+            <Button.KeyboardAccelerators>
+                <KeyboardAccelerator Key="U" Modifiers="Control"/>
+            </Button.KeyboardAccelerators>
+        </Button>
+
         <Border
             HorizontalAlignment="Center"
             VerticalAlignment="Center"

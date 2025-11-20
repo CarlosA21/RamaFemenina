@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Page
-    x:Class="RamaFemenina.ChequesPage"
+    x:Class="RamaFemenina.CajaChicaPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:RamaFemenina"
@@ -19,11 +19,11 @@
         <!-- Header -->
         <StackPanel Grid.Row="0" Padding="24,24,24,16">
             <TextBlock 
-                Text="Gestión de Cheques"
+                Text="💵 Desembolso de Caja Chica"
                 Style="{StaticResource TitleTextBlockStyle}"
                 Margin="0,0,0,8"/>
             <TextBlock 
-                Text="Administra y controla todos los cheques emitidos"
+                Text="Gestión de desembolsos y pagos de caja chica"
                 Style="{StaticResource BodyTextBlockStyle}"
                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
         </StackPanel>
@@ -41,40 +41,36 @@
             <CommandBar Grid.Row="0" DefaultLabelPosition="Right" Background="Transparent">
                 <AppBarButton 
                     Icon="Add" 
-                    Label="Nuevo Cheque"
-                    Click="BtnNuevoCheque_Click"/>
+                    Label="Nuevo Desembolso"
+                    Click="BtnNuevo_Click"/>
                 <AppBarButton 
                     Icon="Edit" 
                     Label="Editar"
-                    Click="BtnEditarCheque_Click"
-                    IsEnabled="{x:Bind IsChequeSelected, Mode=OneWay}"/>
+                    Click="BtnEditar_Click"
+                    IsEnabled="{x:Bind IsItemSelected, Mode=OneWay}"/>
                 <AppBarButton 
                     Icon="Delete" 
                     Label="Eliminar"
-                    Click="BtnEliminarCheque_Click"
-                    IsEnabled="{x:Bind IsChequeSelected, Mode=OneWay}"/>
+                    Click="BtnEliminar_Click"
+                    IsEnabled="{x:Bind IsItemSelected, Mode=OneWay}"/>
                 <AppBarSeparator/>
                 <AppBarButton 
                     Icon="Print" 
                     Label="Imprimir"
-                    Click="BtnImprimirCheque_Click"
-                    IsEnabled="{x:Bind IsChequeSelected, Mode=OneWay}"/>
-                <AppBarButton 
-                    Icon="Refresh" 
-                    Label="Actualizar"
-                    Click="BtnActualizar_Click"/>
+                    Click="BtnImprimir_Click"
+                    IsEnabled="{x:Bind IsItemSelected, Mode=OneWay}"/>
             </CommandBar>
 
             <!-- Search Bar -->
             <AutoSuggestBox
                 x:Name="SearchBox"
                 Grid.Row="1"
-                PlaceholderText="Buscar por número de cheque, nombre, concepto o monto..."
+                PlaceholderText="🔍 Buscar por nombre, recibo, concepto o monto..."
                 QueryIcon="Find"
                 Margin="0,8,0,16"
                 TextChanged="SearchBox_TextChanged"/>
 
-            <!-- DataGrid / ListView -->
+            <!-- DataGrid -->
             <Grid Grid.Row="2" Margin="0,8,0,0">
                 <Border 
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
@@ -83,48 +79,49 @@
                     CornerRadius="8">
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                         <ListView
-                            x:Name="ChequesListView"
+                            x:Name="DesembolsosListView"
                             SelectionMode="Single"
-                            SelectionChanged="ChequesListView_SelectionChanged">
+                            SelectionChanged="ListView_SelectionChanged">
                             <ListView.Header>
-                                <Grid Padding="16,12" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}" MinWidth="1000">
+                                <Grid Padding="16,12" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}" MinWidth="1200">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="100"/>
-                                        <ColumnDefinition Width="180"/>
-                                        <ColumnDefinition Width="250"/>
-                                        <ColumnDefinition Width="150"/>
-                                        <ColumnDefinition Width="*" MinWidth="200"/>
                                         <ColumnDefinition Width="120"/>
+                                        <ColumnDefinition Width="120"/>
+                                        <ColumnDefinition Width="*" MinWidth="200"/>
+                                        <ColumnDefinition Width="150"/>
+                                        <ColumnDefinition Width="200"/>
+                                        <ColumnDefinition Width="*" MinWidth="250"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="ID" FontWeight="SemiBold" Grid.Column="0"/>
-                                    <TextBlock Text="N° Cheque" FontWeight="SemiBold" Grid.Column="1"/>
-                                    <TextBlock Text="Páguese a la Orden de" FontWeight="SemiBold" Grid.Column="2"/>
+                                    <TextBlock Text="No. Recibo" FontWeight="SemiBold" Grid.Column="0"/>
+                                    <TextBlock Text="Fecha" FontWeight="SemiBold" Grid.Column="1"/>
+                                    <TextBlock Text="Pagado a" FontWeight="SemiBold" Grid.Column="2"/>
                                     <TextBlock Text="Monto (RD$)" FontWeight="SemiBold" Grid.Column="3"/>
-                                    <TextBlock Text="Concepto de Pago" FontWeight="SemiBold" Grid.Column="4"/>
-                                    <TextBlock Text="Fecha" FontWeight="SemiBold" Grid.Column="5"/>
+                                    <TextBlock Text="Con cargo a" FontWeight="SemiBold" Grid.Column="4"/>
+                                    <TextBlock Text="Por concepto de" FontWeight="SemiBold" Grid.Column="5"/>
                                 </Grid>
                             </ListView.Header>
                             
                             <ListView.ItemTemplate>
-                                <DataTemplate x:DataType="models:Cheques">
-                                    <Grid Padding="16,12" MinWidth="1000">
+                                <DataTemplate x:DataType="models:CajaChica">
+                                    <Grid Padding="16,12" MinWidth="1200">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="100"/>
-                                            <ColumnDefinition Width="180"/>
-                                            <ColumnDefinition Width="250"/>
-                                            <ColumnDefinition Width="150"/>
-                                            <ColumnDefinition Width="*" MinWidth="200"/>
                                             <ColumnDefinition Width="120"/>
+                                            <ColumnDefinition Width="120"/>
+                                            <ColumnDefinition Width="*" MinWidth="200"/>
+                                            <ColumnDefinition Width="150"/>
+                                            <ColumnDefinition Width="200"/>
+                                            <ColumnDefinition Width="*" MinWidth="250"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="{x:Bind idCheque}" Grid.Column="0" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{x:Bind numero}" Grid.Column="1" VerticalAlignment="Center" FontWeight="SemiBold"/>
-                                        <TextBlock Text="{x:Bind nombre}" Grid.Column="2" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                                        <TextBlock Grid.Column="3" VerticalAlignment="Center">
+                                        
+                                        <TextBlock Text="{x:Bind NumeroRecibo}" Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                        <TextBlock Text="{x:Bind FechaFormateada}" Grid.Column="1" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{x:Bind PagadoA}" Grid.Column="2" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="3" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="{x:Bind MontoColor}">
                                             <Run Text="$"/>
-                                            <Run Text="{x:Bind monto}" FontWeight="SemiBold"/>
+                                            <Run Text="{x:Bind Monto}"/>
                                         </TextBlock>
-                                        <TextBlock Text="{x:Bind concepto}" Grid.Column="4" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{x:Bind FechaFormateada}" Grid.Column="5" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{x:Bind ConCargoA}" Grid.Column="4" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{x:Bind Concepto}" Grid.Column="5" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
                                     </Grid>
                                 </DataTemplate>
                             </ListView.ItemTemplate>
@@ -147,16 +144,16 @@
                     VerticalAlignment="Center"
                     Spacing="16">
                     <TextBlock 
-                        Text="💳"
+                        Text="💵"
                         FontSize="72"
                         HorizontalAlignment="Center"/>
                     <TextBlock 
-                        Text="No hay cheques registrados"
+                        Text="No hay desembolsos registrados"
                         FontSize="20"
                         FontWeight="SemiBold"
                         HorizontalAlignment="Center"/>
                     <TextBlock 
-                        Text="Haz clic en 'Nuevo Cheque' para comenzar"
+                        Text="Haz clic en 'Nuevo Desembolso' para comenzar"
                         HorizontalAlignment="Center"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 </StackPanel>
@@ -178,12 +175,12 @@
 
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
                             <FontIcon Glyph="&#xE8F1;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
-                            <TextBlock x:Name="TotalChequesText" Text="Total de cheques: 0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="TotalDesembolsosText" Text="Total de desembolsos: 0" VerticalAlignment="Center"/>
                         </StackPanel>
-
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="24,0,0,0">
+                        
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                             <FontIcon Glyph="&#xE8EC;" FontSize="16" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
-                            <TextBlock x:Name="TotalMontoText" Text="Monto total: $0.00" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="TotalMontoText" Text="Monto total: $0.00" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="Green" FontSize="16"/>
                         </StackPanel>
                     </Grid>
                 </Border>

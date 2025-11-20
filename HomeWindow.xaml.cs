@@ -51,6 +51,9 @@ public sealed partial class HomeWindow : Window
                 case "Recibos":
                     ContentFrame.Navigate(typeof(ReciboPage));
                     break;
+                case "CajaChica":
+                    ContentFrame.Navigate(typeof(CajaChicaPage));
+                    break;
             }
         }
     }

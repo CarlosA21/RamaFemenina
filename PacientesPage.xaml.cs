@@ -7,12 +7,16 @@ using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 using RamaFemenina.Models;
+using RamaFemenina.Data;
 
 namespace RamaFemenina;
 
 public sealed partial class PacientesPage : Page, INotifyPropertyChanged
 {
+    private readonly RamaFemeninaContext _context;
     private bool _isPatientSelected;
     
     public bool IsPatientSelected
@@ -42,51 +46,43 @@ public sealed partial class PacientesPage : Page, INotifyPropertyChanged
     public PacientesPage()
     {
         InitializeComponent();
+        
+        var app = Application.Current as App;
+        _context = app!.Services.GetRequiredService<RamaFemeninaContext>();
+        
         Pacientes = new ObservableCollection<Paciente>();
         PacientesFiltrados = new ObservableCollection<Paciente>();
         Donaciones = new ObservableCollection<Donaciones>();
-        CargarPacientes();
+        
+        _ = CargarPacientesAsync();
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        // Aquí podrías recibir parámetros si los necesitas
+        _ = CargarPacientesAsync();
     }
 
-    private void CargarPacientes()
+    private async Task CargarPacientesAsync()
     {
-        // TODO: Cargar desde base de datos
-        // Por ahora, datos de ejemplo
-        Pacientes.Add(new Paciente
+        try
         {
-            cedula = 1,
-            nombre = "María García López",
-            telefono = "555-0101",
-            celular = "555-1234",
-            nrecord = 1001,
-            observaciones = "Paciente regular",
-            sexo = "F",
-            area = "Cardiología"
-        });
-        
-        Pacientes.Add(new Paciente
-        {
-            cedula = 2,
-            nombre = "Ana Martínez Rodríguez",
-            telefono = "555-0102",
-            celular = "555-5678",
-            nrecord = 1002,
-            observaciones = "Primera visita",
-            sexo = "F",
-            area = "Pediatría"
-        });
+            Pacientes.Clear();
+            
+            var pacientes = await _context.Pacientes.ToListAsync();
+            
+            foreach (var paciente in pacientes)
+            {
+                Pacientes.Add(paciente);
+            }
 
-        // Inicializar la lista filtrada con todos los pacientes
-        ActualizarListaFiltrada();
-        
-        // Mostrar estado vacío si no hay pacientes
-        EmptyState.Visibility = Pacientes.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            ActualizarListaFiltrada();
+            EmptyState.Visibility = Pacientes.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+        catch (Exception ex)
+        {
+            await ShowInfoDialog("Error", $"Error al cargar pacientes: {ex.Message}");
+        }
     }
 
     private void ActualizarListaFiltrada(string searchText = "")
@@ -98,8 +94,8 @@ public sealed partial class PacientesPage : Page, INotifyPropertyChanged
             : Pacientes.Where(p =>
                 p.nombre.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
                 p.cedula.ToString().Contains(searchText) ||
-                p.telefono.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
-                p.celular.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                (p.telefono != null && p.telefono.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
+                (p.celular != null && p.celular.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
                 p.nrecord.ToString().Contains(searchText) ||
                 (!string.IsNullOrEmpty(p.observaciones) && p.observaciones.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
                 (!string.IsNullOrEmpty(p.sexo) && p.sexo.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
@@ -123,160 +119,21 @@ public sealed partial class PacientesPage : Page, INotifyPropertyChanged
 
     private async void BtnNuevoPaciente_Click(object sender, RoutedEventArgs e)
     {
-        // Crear campos del formulario
-        var cedulaBox = new NumberBox
+        var resultado = await MostrarDialogoPaciente(null);
+        if (resultado != null)
         {
-            Header = "Cédula",
-            PlaceholderText = "Ingrese el número de cédula",
-            SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Hidden,
-            Minimum = 1
-        };
-
-        var nombreBox = new TextBox
-        {
-            Header = "Nombre Completo",
-            PlaceholderText = "Ingrese el nombre completo del paciente"
-        };
-
-        var telefonoBox = new TextBox
-        {
-            Header = "Teléfono",
-            PlaceholderText = "555-0000"
-        };
-
-        var celularBox = new TextBox
-        {
-            Header = "Celular",
-            PlaceholderText = "555-0000"
-        };
-
-        var nrecordBox = new NumberBox
-        {
-            Header = "Número de Registro",
-            PlaceholderText = "Número de registro",
-            SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Hidden,
-            Minimum = 1
-        };
-
-        var sexoCombo = new ComboBox
-        {
-            Header = "Sexo",
-            PlaceholderText = "Seleccione el sexo",
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            ItemsSource = new[] { "M", "F" }
-        };
-
-        var areaBox = new TextBox
-        {
-            Header = "Área",
-            PlaceholderText = "Área médica (ej: Cardiología, Pediatría)"
-        };
-
-        var observacionesBox = new TextBox
-        {
-            Header = "Observaciones",
-            PlaceholderText = "Observaciones adicionales (opcional)",
-            AcceptsReturn = true,
-            TextWrapping = TextWrapping.Wrap,
-            Height = 80
-        };
-
-        // Crear panel del formulario
-        var formPanel = new StackPanel
-        {
-            Spacing = 16,
-            Children =
+            try
             {
-                cedulaBox,
-                nombreBox,
-                telefonoBox,
-                celularBox,
-                nrecordBox,
-                sexoCombo,
-                areaBox,
-                observacionesBox
+                _context.Pacientes.Add(resultado);
+                await _context.SaveChangesAsync();
+
+                await CargarPacientesAsync();
+                await ShowInfoDialog("Éxito", "Paciente agregado correctamente");
             }
-        };
-
-        var scrollViewer = new ScrollViewer
-        {
-            Content = formPanel,
-            MaxHeight = 500,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto
-        };
-
-        // Crear diálogo
-        var dialog = new ContentDialog
-        {
-            Title = "Nuevo Paciente",
-            Content = scrollViewer,
-            PrimaryButtonText = "Guardar",
-            CloseButtonText = "Cancelar",
-            DefaultButton = ContentDialogButton.Primary,
-            XamlRoot = this.XamlRoot
-        };
-
-        var result = await dialog.ShowAsync();
-
-        // Si el usuario presionó Guardar
-        if (result == ContentDialogResult.Primary)
-        {
-            // Validar campos obligatorios
-            if (string.IsNullOrWhiteSpace(nombreBox.Text))
+            catch (Exception ex)
             {
-                await ShowInfoDialog("Error", "El nombre es obligatorio");
-                return;
+                await ShowInfoDialog("Error", $"Error al guardar: {ex.Message}");
             }
-
-            if (cedulaBox.Value <= 0 || double.IsNaN(cedulaBox.Value))
-            {
-                await ShowInfoDialog("Error", "Debe ingresar una cédula válida");
-                return;
-            }
-
-            // Verificar si la cédula ya existe
-            if (Pacientes.Any(p => p.cedula == (int)cedulaBox.Value))
-            {
-                await ShowInfoDialog("Error", "Ya existe un paciente con esta cédula");
-                return;
-            }
-
-            if (nrecordBox.Value <= 0 || double.IsNaN(nrecordBox.Value))
-            {
-                await ShowInfoDialog("Error", "Debe ingresar un número de registro válido");
-                return;
-            }
-
-            if (sexoCombo.SelectedItem == null)
-            {
-                await ShowInfoDialog("Error", "Debe seleccionar el sexo");
-                return;
-            }
-
-            // Crear nuevo paciente
-            var nuevoPaciente = new Paciente
-            {
-                cedula = (int)cedulaBox.Value,
-                nombre = nombreBox.Text.Trim(),
-                telefono = telefonoBox.Text.Trim(),
-                celular = celularBox.Text.Trim(),
-                nrecord = (long)nrecordBox.Value,
-                sexo = sexoCombo.SelectedItem.ToString(),
-                area = areaBox.Text.Trim(),
-                observaciones = observacionesBox.Text.Trim()
-            };
-
-            // Agregar a la colección
-            Pacientes.Add(nuevoPaciente);
-            
-            // Actualizar la lista filtrada
-            ActualizarListaFiltrada(SearchBox?.Text ?? "");
-            
-            // Actualizar visibilidad del estado vacío
-            EmptyState.Visibility = Visibility.Collapsed;
-
-            // Mostrar mensaje de éxito
-            await ShowInfoDialog("Éxito", "Paciente agregado correctamente");
         }
     }
 
@@ -289,146 +146,31 @@ public sealed partial class PacientesPage : Page, INotifyPropertyChanged
             return;
         }
 
-        // Crear campos del formulario con los datos actuales
-        var cedulaBox = new NumberBox
+        var resultado = await MostrarDialogoPaciente(pacienteSeleccionado);
+        if (resultado != null)
         {
-            Header = "Cédula",
-            PlaceholderText = "Ingrese el número de cédula",
-            SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Hidden,
-            Minimum = 1,
-            Value = pacienteSeleccionado.cedula,
-            IsEnabled = false // No permitir editar la cédula
-        };
-
-        var nombreBox = new TextBox
-        {
-            Header = "Nombre Completo",
-            PlaceholderText = "Ingrese el nombre completo del paciente",
-            Text = pacienteSeleccionado.nombre
-        };
-
-        var telefonoBox = new TextBox
-        {
-            Header = "Teléfono",
-            PlaceholderText = "555-0000",
-            Text = pacienteSeleccionado.telefono
-        };
-
-        var celularBox = new TextBox
-        {
-            Header = "Celular",
-            PlaceholderText = "555-0000",
-            Text = pacienteSeleccionado.celular
-        };
-
-        var nrecordBox = new NumberBox
-        {
-            Header = "Número de Registro",
-            PlaceholderText = "Número de registro",
-            SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Hidden,
-            Minimum = 1,
-            Value = pacienteSeleccionado.nrecord
-        };
-
-        var sexoCombo = new ComboBox
-        {
-            Header = "Sexo",
-            PlaceholderText = "Seleccione el sexo",
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            ItemsSource = new[] { "M", "F" },
-            SelectedItem = pacienteSeleccionado.sexo
-        };
-
-        var areaBox = new TextBox
-        {
-            Header = "Área",
-            PlaceholderText = "Área médica (ej: Cardiología, Pediatría)",
-            Text = pacienteSeleccionado.area ?? ""
-        };
-
-        var observacionesBox = new TextBox
-        {
-            Header = "Observaciones",
-            PlaceholderText = "Observaciones adicionales (opcional)",
-            AcceptsReturn = true,
-            TextWrapping = TextWrapping.Wrap,
-            Height = 80,
-            Text = pacienteSeleccionado.observaciones ?? ""
-        };
-
-        // Crear panel del formulario
-        var formPanel = new StackPanel
-        {
-            Spacing = 16,
-            Children =
+            try
             {
-                cedulaBox,
-                nombreBox,
-                telefonoBox,
-                celularBox,
-                nrecordBox,
-                sexoCombo,
-                areaBox,
-                observacionesBox
+                var paciente = await _context.Pacientes.FindAsync(pacienteSeleccionado.cedula);
+                if (paciente != null)
+                {
+                    paciente.nombre = resultado.nombre;
+                    paciente.telefono = resultado.telefono;
+                    paciente.celular = resultado.celular;
+                    paciente.nrecord = resultado.nrecord;
+                    paciente.sexo = resultado.sexo;
+                    paciente.area = resultado.area;
+                    paciente.observaciones = resultado.observaciones;
+
+                    await _context.SaveChangesAsync();
+                    await CargarPacientesAsync();
+                    await ShowInfoDialog("Éxito", "Paciente actualizado correctamente");
+                }
             }
-        };
-
-        var scrollViewer = new ScrollViewer
-        {
-            Content = formPanel,
-            MaxHeight = 500,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto
-        };
-
-        // Crear diálogo
-        var dialog = new ContentDialog
-        {
-            Title = "Editar Paciente",
-            Content = scrollViewer,
-            PrimaryButtonText = "Guardar",
-            CloseButtonText = "Cancelar",
-            DefaultButton = ContentDialogButton.Primary,
-            XamlRoot = this.XamlRoot
-        };
-
-        var result = await dialog.ShowAsync();
-
-        // Si el usuario presionó Guardar
-        if (result == ContentDialogResult.Primary)
-        {
-            // Validar campos obligatorios
-            if (string.IsNullOrWhiteSpace(nombreBox.Text))
+            catch (Exception ex)
             {
-                await ShowInfoDialog("Error", "El nombre es obligatorio");
-                return;
+                await ShowInfoDialog("Error", $"Error al actualizar: {ex.Message}");
             }
-
-            if (nrecordBox.Value <= 0 || double.IsNaN(nrecordBox.Value))
-            {
-                await ShowInfoDialog("Error", "Debe ingresar un número de registro válido");
-                return;
-            }
-
-            if (sexoCombo.SelectedItem == null)
-            {
-                await ShowInfoDialog("Error", "Debe seleccionar el sexo");
-                return;
-            }
-
-            // Actualizar los datos del paciente
-            pacienteSeleccionado.nombre = nombreBox.Text.Trim();
-            pacienteSeleccionado.telefono = telefonoBox.Text.Trim();
-            pacienteSeleccionado.celular = celularBox.Text.Trim();
-            pacienteSeleccionado.nrecord = (long)nrecordBox.Value;
-            pacienteSeleccionado.sexo = sexoCombo.SelectedItem.ToString();
-            pacienteSeleccionado.area = areaBox.Text.Trim();
-            pacienteSeleccionado.observaciones = observacionesBox.Text.Trim();
-
-            // Actualizar la lista filtrada
-            ActualizarListaFiltrada(SearchBox?.Text ?? "");
-
-            // Mostrar mensaje de éxito
-            await ShowInfoDialog("Éxito", "Paciente actualizado correctamente");
         }
     }
 
@@ -441,64 +183,23 @@ public sealed partial class PacientesPage : Page, INotifyPropertyChanged
             return;
         }
 
-        // Crear contenido del diálogo de confirmación
-        var messagePanel = new StackPanel
-        {
-            Spacing = 12
-        };
+        var donacionesAsociadas = await _context.Donaciones
+            .Where(d => d.idPaciente == pacienteSeleccionado.cedula)
+            .CountAsync();
 
-        messagePanel.Children.Add(new TextBlock
+        var mensaje = $"¿Está seguro que desea eliminar este paciente?\n\nPaciente: {pacienteSeleccionado.nombre}\nCédula: {pacienteSeleccionado.cedula}";
+        
+        if (donacionesAsociadas > 0)
         {
-            Text = "¿Está seguro que desea eliminar este paciente?",
-            TextWrapping = TextWrapping.Wrap
-        });
-
-        messagePanel.Children.Add(new TextBlock
-        {
-            Text = $"Paciente: {pacienteSeleccionado.nombre}",
-            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-            TextWrapping = TextWrapping.Wrap
-        });
-
-        messagePanel.Children.Add(new TextBlock
-        {
-            Text = $"Cédula: {pacienteSeleccionado.cedula}",
-            TextWrapping = TextWrapping.Wrap
-        });
-
-        // Verificar si tiene donaciones asociadas
-        var donacionesAsociadas = Donaciones.Where(d => d.idPaciente == pacienteSeleccionado.cedula).ToList();
-        if (donacionesAsociadas.Count > 0)
-        {
-            messagePanel.Children.Add(new TextBlock
-            {
-                Text = $"\n?? ADVERTENCIA: Este paciente tiene {donacionesAsociadas.Count} donación(es) registrada(s).",
-                Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Orange),
-                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-                TextWrapping = TextWrapping.Wrap
-            });
-
-            messagePanel.Children.Add(new TextBlock
-            {
-                Text = "Las donaciones asociadas también serán eliminadas.",
-                Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Orange),
-                TextWrapping = TextWrapping.Wrap
-            });
+            mensaje += $"\n\n?? ADVERTENCIA: Este paciente tiene {donacionesAsociadas} donación(es) registrada(s).\nLas donaciones asociadas también serán eliminadas.";
         }
+        
+        mensaje += "\n\nEsta acción no se puede deshacer.";
 
-        messagePanel.Children.Add(new TextBlock
-        {
-            Text = "\nEsta acción no se puede deshacer.",
-            FontStyle = Windows.UI.Text.FontStyle.Italic,
-            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Red),
-            TextWrapping = TextWrapping.Wrap
-        });
-
-        // Crear diálogo de confirmación
         var confirmDialog = new ContentDialog
         {
             Title = "Confirmar Eliminación",
-            Content = messagePanel,
+            Content = mensaje,
             PrimaryButtonText = "Eliminar",
             CloseButtonText = "Cancelar",
             DefaultButton = ContentDialogButton.Close,
@@ -507,33 +208,28 @@ public sealed partial class PacientesPage : Page, INotifyPropertyChanged
 
         var result = await confirmDialog.ShowAsync();
 
-        // Si el usuario confirmó la eliminación
         if (result == ContentDialogResult.Primary)
         {
-            // Eliminar donaciones asociadas
-            foreach (var donacion in donacionesAsociadas)
+            try
             {
-                Donaciones.Remove(donacion);
+                var paciente = await _context.Pacientes.FindAsync(pacienteSeleccionado.cedula);
+                if (paciente != null)
+                {
+                    _context.Pacientes.Remove(paciente);
+                    await _context.SaveChangesAsync();
+                    await CargarPacientesAsync();
+
+                    var mensajeExito = donacionesAsociadas > 0
+                        ? $"Paciente eliminado correctamente.\nSe eliminaron {donacionesAsociadas} donación(es) asociada(s)."
+                        : "Paciente eliminado correctamente.";
+
+                    await ShowInfoDialog("Éxito", mensajeExito);
+                }
             }
-
-            // Eliminar el paciente
-            Pacientes.Remove(pacienteSeleccionado);
-
-            // Actualizar la lista filtrada
-            ActualizarListaFiltrada(SearchBox?.Text ?? "");
-
-            // Actualizar visibilidad del estado vacío
-            EmptyState.Visibility = Pacientes.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-
-            // Limpiar selección
-            PacientesListView.SelectedItem = null;
-
-            // Mostrar mensaje de éxito
-            var mensajeExito = donacionesAsociadas.Count > 0
-                ? $"Paciente eliminado correctamente.\nSe eliminaron {donacionesAsociadas.Count} donación(es) asociada(s)."
-                : "Paciente eliminado correctamente.";
-
-            await ShowInfoDialog("Éxito", mensajeExito);
+            catch (Exception ex)
+            {
+                await ShowInfoDialog("Error", $"Error al eliminar: {ex.Message}");
+            }
         }
     }
 
@@ -546,90 +242,92 @@ public sealed partial class PacientesPage : Page, INotifyPropertyChanged
             return;
         }
 
-        // Crear campos del formulario
-        var infoPaciente = new TextBlock
+        var resultado = await MostrarDialogoDonacion(pacienteSeleccionado);
+        if (resultado != null)
         {
-            Text = $"Paciente: {pacienteSeleccionado.nombre} (Cédula: {pacienteSeleccionado.cedula})",
-            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-            Margin = new Thickness(0, 0, 0, 16)
+            try
+            {
+                _context.Donaciones.Add(resultado);
+                await _context.SaveChangesAsync();
+                await ShowInfoDialog("Éxito", $"Donación registrada correctamente.\nID Donación: {resultado.idDonacion}\nTotal: ${resultado.total:N2}");
+            }
+            catch (Exception ex)
+            {
+                await ShowInfoDialog("Error", $"Error al guardar donación: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task<Paciente> MostrarDialogoPaciente(Paciente pacienteExistente)
+    {
+        bool esEdicion = pacienteExistente != null;
+
+        var cedulaBox = new TextBox
+        {
+            Header = "Cédula",
+            PlaceholderText = "Ingrese el número de cédula",
+            Text = pacienteExistente?.cedula ?? "",
+            IsEnabled = !esEdicion
         };
 
-        var fechaPicker = new CalendarDatePicker
+        var nombreBox = new TextBox
         {
-            Header = "Fecha de Donación",
-            Date = DateTimeOffset.Now,
-            MaxDate = DateTimeOffset.Now
+            Header = "Nombre Completo",
+            PlaceholderText = "Ingrese el nombre completo del paciente",
+            Text = pacienteExistente?.nombre ?? ""
         };
 
-        var procedimientoBox = new TextBox
+        var telefonoBox = new TextBox
         {
-            Header = "Procedimiento",
-            PlaceholderText = "Descripción del procedimiento",
-            AcceptsReturn = true,
-            TextWrapping = TextWrapping.Wrap,
-            Height = 80
+            Header = "Teléfono",
+            PlaceholderText = "555-0000",
+            Text = pacienteExistente?.telefono ?? ""
         };
 
-        var montoSolicitadoBox = new NumberBox
+        var celularBox = new TextBox
         {
-            Header = "Monto Solicitado",
-            PlaceholderText = "0.00",
-            SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Hidden,
-            Minimum = 0,
-            SmallChange = 0.01,
-            LargeChange = 1.0
+            Header = "Celular",
+            PlaceholderText = "555-0000",
+            Text = pacienteExistente?.celular ?? ""
         };
 
-        var valorDonacionBox = new NumberBox
+        var nrecordBox = new TextBox
         {
-            Header = "Valor de la Donación",
-            PlaceholderText = "0.00",
-            SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Hidden,
-            Minimum = 0,
-            SmallChange = 0.01,
-            LargeChange = 1.0
+            Header = "Número de Registro",
+            PlaceholderText = "Número de registro",
+            Text = pacienteExistente?.nrecord ?? ""
         };
 
-        var totalBox = new NumberBox
+        var sexoCombo = new ComboBox
         {
-            Header = "Total",
-            PlaceholderText = "0.00",
-            SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Hidden,
-            Minimum = 0,
-            SmallChange = 0.01,
-            LargeChange = 1.0,
-            IsEnabled = false
+            Header = "Sexo",
+            PlaceholderText = "Seleccione el sexo",
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            ItemsSource = new[] { "M", "F" },
+            SelectedItem = pacienteExistente?.sexo
         };
 
-        var observacionBox = new TextBox
+        var areaBox = new TextBox
+        {
+            Header = "Área",
+            PlaceholderText = "Área médica",
+            Text = pacienteExistente?.area ?? ""
+        };
+
+        var observacionesBox = new TextBox
         {
             Header = "Observaciones",
-            PlaceholderText = "Observaciones adicionales (opcional)",
+            PlaceholderText = "Observaciones adicionales",
             AcceptsReturn = true,
             TextWrapping = TextWrapping.Wrap,
-            Height = 80
+            Height = 80,
+            Text = pacienteExistente?.observaciones ?? ""
         };
 
-        // Evento para calcular el total automáticamente
-        valorDonacionBox.ValueChanged += (s, args) =>
-        {
-            totalBox.Value = valorDonacionBox.Value;
-        };
-
-        // Crear panel del formulario con scroll
         var formPanel = new StackPanel
         {
             Spacing = 16,
-            Children =
-            {
-                infoPaciente,
-                fechaPicker,
-                procedimientoBox,
-                montoSolicitadoBox,
-                valorDonacionBox,
-                totalBox,
-                observacionBox
-            }
+            Children = { cedulaBox, nombreBox, telefonoBox, celularBox, nrecordBox, sexoCombo, areaBox, observacionesBox }
         };
 
         var scrollViewer = new ScrollViewer
@@ -639,10 +337,9 @@ public sealed partial class PacientesPage : Page, INotifyPropertyChanged
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto
         };
 
-        // Crear diálogo
         var dialog = new ContentDialog
         {
-            Title = "Registrar Donación",
+            Title = esEdicion ? "Editar Paciente" : "Nuevo Paciente",
             Content = scrollViewer,
             PrimaryButtonText = "Guardar",
             CloseButtonText = "Cancelar",
@@ -652,56 +349,108 @@ public sealed partial class PacientesPage : Page, INotifyPropertyChanged
 
         var result = await dialog.ShowAsync();
 
-        // Si el usuario presionó Guardar
         if (result == ContentDialogResult.Primary)
         {
-            // Validar campos obligatorios
-            if (!fechaPicker.Date.HasValue)
+            if (string.IsNullOrWhiteSpace(nombreBox.Text))
             {
-                await ShowInfoDialog("Error", "Debe seleccionar una fecha");
-                return;
+                await ShowInfoDialog("Error", "El nombre es obligatorio");
+                return null;
             }
 
-            if (string.IsNullOrWhiteSpace(procedimientoBox.Text))
+            if (string.IsNullOrWhiteSpace(cedulaBox.Text))
             {
-                await ShowInfoDialog("Error", "Debe ingresar el procedimiento");
-                return;
+                await ShowInfoDialog("Error", "La cédula es obligatoria");
+                return null;
             }
 
-            if (montoSolicitadoBox.Value <= 0 || double.IsNaN(montoSolicitadoBox.Value))
+            if (!esEdicion && await _context.Pacientes.AnyAsync(p => p.cedula == cedulaBox.Text.Trim()))
             {
-                await ShowInfoDialog("Error", "Debe ingresar un monto solicitado válido");
-                return;
+                await ShowInfoDialog("Error", "Ya existe un paciente con esta cédula");
+                return null;
             }
 
-            if (valorDonacionBox.Value <= 0 || double.IsNaN(valorDonacionBox.Value))
+            if (string.IsNullOrWhiteSpace(nrecordBox.Text))
             {
-                await ShowInfoDialog("Error", "Debe ingresar un valor de donación válido");
-                return;
+                await ShowInfoDialog("Error", "El número de registro es obligatorio");
+                return null;
             }
 
-            // Generar ID de donación (en producción vendría de la base de datos)
-            int nuevoIdDonacion = Donaciones.Count > 0 ? Donaciones.Max(d => d.idDonacion) + 1 : 1;
-
-            // Crear nueva donación
-            var nuevaDonacion = new Donaciones
+            if (sexoCombo.SelectedItem == null)
             {
-                idDonacion = nuevoIdDonacion,
+                await ShowInfoDialog("Error", "Debe seleccionar el sexo");
+                return null;
+            }
+
+            return new Paciente
+            {
+                cedula = cedulaBox.Text.Trim(),
+                nombre = nombreBox.Text.Trim(),
+                telefono = telefonoBox.Text.Trim(),
+                celular = celularBox.Text.Trim(),
+                nrecord = nrecordBox.Text.Trim(),
+                sexo = sexoCombo.SelectedItem.ToString(),
+                area = areaBox.Text.Trim(),
+                observaciones = observacionesBox.Text.Trim()
+            };
+        }
+
+        return null;
+    }
+
+    private async Task<Donaciones> MostrarDialogoDonacion(Paciente paciente)
+    {
+        var fechaPicker = new CalendarDatePicker { Header = "Fecha de Donación", Date = DateTimeOffset.Now, MaxDate = DateTimeOffset.Now };
+        var procedimientoBox = new TextBox { Header = "Procedimiento", PlaceholderText = "Descripción del procedimiento", AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 80 };
+        var montoSolicitadoBox = new NumberBox { Header = "Monto Solicitado", PlaceholderText = "0.00", SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Hidden, Minimum = 0 };
+        var valorDonacionBox = new NumberBox { Header = "Valor de la Donación", PlaceholderText = "0.00", SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Hidden, Minimum = 0 };
+        var totalBox = new NumberBox { Header = "Total", PlaceholderText = "0.00", SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Hidden, Minimum = 0, IsEnabled = false };
+        var observacionBox = new TextBox { Header = "Observaciones", PlaceholderText = "Observaciones adicionales", AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 80 };
+
+        valorDonacionBox.ValueChanged += (s, args) => { totalBox.Value = valorDonacionBox.Value; };
+
+        var formPanel = new StackPanel
+        {
+            Spacing = 16,
+            Children = {
+                new TextBlock { Text = $"Paciente: {paciente.nombre} (Cédula: {paciente.cedula})", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold },
+                fechaPicker, procedimientoBox, montoSolicitadoBox, valorDonacionBox, totalBox, observacionBox
+            }
+        };
+
+        var dialog = new ContentDialog
+        {
+            Title = "Registrar Donación",
+            Content = new ScrollViewer { Content = formPanel, MaxHeight = 500, VerticalScrollBarVisibility = ScrollBarVisibility.Auto },
+            PrimaryButtonText = "Guardar",
+            CloseButtonText = "Cancelar",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = this.XamlRoot
+        };
+
+        var result = await dialog.ShowAsync();
+
+        if (result == ContentDialogResult.Primary)
+        {
+            if (!fechaPicker.Date.HasValue || string.IsNullOrWhiteSpace(procedimientoBox.Text) ||
+                montoSolicitadoBox.Value <= 0 || valorDonacionBox.Value <= 0)
+            {
+                await ShowInfoDialog("Error", "Debe completar todos los campos obligatorios");
+                return null;
+            }
+
+            return new Donaciones
+            {
                 Fecha = fechaPicker.Date.Value.DateTime,
                 procedimiento = procedimientoBox.Text.Trim(),
                 montoSolicitado = (decimal)montoSolicitadoBox.Value,
                 valor = (decimal)valorDonacionBox.Value,
                 total = (decimal)totalBox.Value,
                 observacion = observacionBox.Text.Trim(),
-                idPaciente = pacienteSeleccionado.cedula
+                idPaciente = paciente.cedula
             };
-
-            // Agregar a la colección
-            Donaciones.Add(nuevaDonacion);
-
-            // Mostrar mensaje de éxito
-            await ShowInfoDialog("Éxito", $"Donación registrada correctamente.\nID Donación: {nuevoIdDonacion}\nTotal: ${nuevaDonacion.total:N2}");
         }
+
+        return null;
     }
 
     private void PacientesListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -711,13 +460,7 @@ public sealed partial class PacientesPage : Page, INotifyPropertyChanged
 
     private async Task ShowInfoDialog(string title, string message)
     {
-        ContentDialog dialog = new ContentDialog
-        {
-            Title = title,
-            Content = message,
-            CloseButtonText = "Ok",
-            XamlRoot = this.XamlRoot
-        };
+        var dialog = new ContentDialog { Title = title, Content = message, CloseButtonText = "Ok", XamlRoot = this.XamlRoot };
         await dialog.ShowAsync();
     }
 }

@@ -8,12 +8,16 @@ using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 using RamaFemenina.Models;
+using RamaFemenina.Data;
 
 namespace RamaFemenina;
 
 public sealed partial class DonacionesPage : Page, INotifyPropertyChanged
 {
+    private readonly RamaFemeninaContext _context;
     private bool _isDonacionSelected;
     
     public bool IsDonacionSelected
@@ -42,74 +46,56 @@ public sealed partial class DonacionesPage : Page, INotifyPropertyChanged
 
     public DonacionesPage()
     {
-        // Initialize collections BEFORE InitializeComponent to prevent NullReferenceException
-        // when event handlers fire during XAML initialization
+        InitializeComponent();
+        
+        var app = Application.Current as App;
+        _context = app!.Services.GetRequiredService<RamaFemeninaContext>();
+        
         DonacionesCollection = new ObservableCollection<Donaciones>();
         DonacionesFiltradas = new ObservableCollection<Donaciones>();
         Pacientes = new ObservableCollection<Paciente>();
         
-        InitializeComponent();
-        CargarDatos();
+        _ = CargarDatosAsync();
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
+        _ = CargarDatosAsync();
     }
 
-    private void CargarDatos()
+    private async Task CargarDatosAsync()
     {
-        // TODO: Cargar desde base de datos
-        // Cargar pacientes de ejemplo
-        Pacientes.Add(new Paciente { cedula = 1, nombre = "María García López" });
-        Pacientes.Add(new Paciente { cedula = 2, nombre = "Ana Martínez Rodríguez" });
-        Pacientes.Add(new Paciente { cedula = 3, nombre = "Carmen Pérez Santos" });
-
-        // Datos de ejemplo de donaciones
-        DonacionesCollection.Add(new Donaciones
+        try
         {
-            idDonacion = 1,
-            Fecha = new DateTime(2024, 1, 15),
-            idPaciente = 1,
-            procedimiento = "Cirugía de corazón",
-            observacion = "Paciente de escasos recursos",
-            montoSolicitado = 50000.00m,
-            valor = 50000.00m,
-            total = 50000.00m
-        });
+            // Cargar pacientes
+            Pacientes.Clear();
+            var pacientes = await _context.Pacientes.ToListAsync();
+            foreach (var paciente in pacientes)
+            {
+                Pacientes.Add(paciente);
+            }
 
-        DonacionesCollection.Add(new Donaciones
+            // Cargar donaciones
+            DonacionesCollection.Clear();
+            var donaciones = await _context.Donaciones.OrderByDescending(d => d.Fecha).ToListAsync();
+            foreach (var donacion in donaciones)
+            {
+                DonacionesCollection.Add(donacion);
+            }
+
+            ActualizarListaFiltrada();
+            ActualizarResumen();
+            EmptyState.Visibility = DonacionesCollection.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+        catch (Exception ex)
         {
-            idDonacion = 2,
-            Fecha = new DateTime(2024, 1, 20),
-            idPaciente = 2,
-            procedimiento = "Tratamiento de cáncer",
-            observacion = "Requiere quimioterapia urgente",
-            montoSolicitado = 75000.00m,
-            valor = 45000.00m,
-            total = 45000.00m
-        });
-
-        DonacionesCollection.Add(new Donaciones
-        {
-            idDonacion = 3,
-            Fecha = new DateTime(2024, 1, 25),
-            idPaciente = 3,
-            procedimiento = "Diálisis",
-            observacion = "Tratamiento mensual",
-            montoSolicitado = 25000.00m,
-            valor = 0.00m,
-            total = 0.00m
-        });
-
-        ActualizarListaFiltrada();
-        ActualizarResumen();
-        EmptyState.Visibility = DonacionesCollection.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            await ShowInfoDialog("Error", $"Error al cargar datos: {ex.Message}");
+        }
     }
 
     private void ActualizarListaFiltrada(string searchText = "")
     {
-        // Safety check: prevent execution if collections aren't initialized yet
         if (DonacionesFiltradas == null || DonacionesCollection == null) return;
         
         DonacionesFiltradas.Clear();
@@ -119,38 +105,22 @@ public sealed partial class DonacionesPage : Page, INotifyPropertyChanged
             : DonacionesCollection.Where(d =>
                 (d.procedimiento != null && d.procedimiento.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
                 (d.observacion != null && d.observacion.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
-                d.idPaciente.ToString().Contains(searchText) ||
+                (d.idPaciente != null && d.idPaciente.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
                 d.valor.ToString().Contains(searchText) ||
-                d.montoSolicitado.ToString().Contains(searchText));
+                d.montoSolicitado.ToString().Contains(searchText) ||
+                d.idDonacion.ToString().Contains(searchText));
 
-        // Aplicar ordenamiento
-        var ordenadas = AplicarOrdenamiento(donacionesFiltradas);
-
-        foreach (var donacion in ordenadas)
+        foreach (var donacion in donacionesFiltradas)
         {
             DonacionesFiltradas.Add(donacion);
         }
 
+        DonacionesListView.ItemsSource = DonacionesFiltradas;
         ActualizarResumen();
-    }
-
-    private IEnumerable<Donaciones> AplicarOrdenamiento(IEnumerable<Donaciones> donaciones)
-    {
-        var selectedIndex = OrdenarCombo?.SelectedIndex ?? 0;
-        
-        return selectedIndex switch
-        {
-            0 => donaciones.OrderByDescending(d => d.Fecha), // Fecha (Reciente)
-            1 => donaciones.OrderBy(d => d.Fecha), // Fecha (Antigua)
-            2 => donaciones.OrderByDescending(d => d.total), // Monto (Mayor)
-            3 => donaciones.OrderBy(d => d.total), // Monto (Menor)
-            _ => donaciones.OrderByDescending(d => d.Fecha)
-        };
     }
 
     private void ActualizarResumen()
     {
-        // Safety check: prevent execution if collections or UI elements aren't initialized yet
         if (DonacionesFiltradas == null || TotalDonacionesText == null) return;
         
         var totalDonaciones = DonacionesFiltradas.Count;
@@ -172,30 +142,29 @@ public sealed partial class DonacionesPage : Page, INotifyPropertyChanged
         }
     }
 
-    private void FiltroFecha_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        // TODO: Implementar filtrado por fecha
-        ActualizarListaFiltrada(SearchBox?.Text ?? "");
-    }
-
-    private void Ordenar_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        ActualizarListaFiltrada(SearchBox?.Text ?? "");
-    }
-
     private async void BtnNuevaDonacion_Click(object sender, RoutedEventArgs e)
     {
+        if (Pacientes.Count == 0)
+        {
+            await ShowInfoDialog("Advertencia", "No hay pacientes registrados. Por favor, registre un paciente primero.");
+            return;
+        }
+
         var resultado = await MostrarDialogoDonacion(null);
         if (resultado != null)
         {
-            int nuevoId = DonacionesCollection.Count > 0 ? DonacionesCollection.Max(d => d.idDonacion) + 1 : 1;
-            resultado.idDonacion = nuevoId;
+            try
+            {
+                _context.Donaciones.Add(resultado);
+                await _context.SaveChangesAsync();
 
-            DonacionesCollection.Add(resultado);
-            ActualizarListaFiltrada(SearchBox?.Text ?? "");
-            EmptyState.Visibility = Visibility.Collapsed;
-
-            await ShowInfoDialog("Éxito", $"Donación registrada correctamente.\nID: {nuevoId}\nTotal: ${resultado.total:N2}");
+                await CargarDatosAsync();
+                await ShowInfoDialog("Éxito", $"Donación registrada correctamente.\nID: {resultado.idDonacion}\nTotal: ${resultado.total:N2}");
+            }
+            catch (Exception ex)
+            {
+                await ShowInfoDialog("Error", $"Error al guardar donación: {ex.Message}");
+            }
         }
     }
 
@@ -211,16 +180,28 @@ public sealed partial class DonacionesPage : Page, INotifyPropertyChanged
         var resultado = await MostrarDialogoDonacion(donacionSeleccionada);
         if (resultado != null)
         {
-            donacionSeleccionada.Fecha = resultado.Fecha;
-            donacionSeleccionada.idPaciente = resultado.idPaciente;
-            donacionSeleccionada.procedimiento = resultado.procedimiento;
-            donacionSeleccionada.observacion = resultado.observacion;
-            donacionSeleccionada.montoSolicitado = resultado.montoSolicitado;
-            donacionSeleccionada.valor = resultado.valor;
-            donacionSeleccionada.total = resultado.total;
+            try
+            {
+                var donacion = await _context.Donaciones.FindAsync(donacionSeleccionada.idDonacion);
+                if (donacion != null)
+                {
+                    donacion.Fecha = resultado.Fecha;
+                    donacion.idPaciente = resultado.idPaciente;
+                    donacion.procedimiento = resultado.procedimiento;
+                    donacion.observacion = resultado.observacion;
+                    donacion.montoSolicitado = resultado.montoSolicitado;
+                    donacion.valor = resultado.valor;
+                    donacion.total = resultado.total;
 
-            ActualizarListaFiltrada(SearchBox?.Text ?? "");
-            await ShowInfoDialog("Éxito", "Donación actualizada correctamente");
+                    await _context.SaveChangesAsync();
+                    await CargarDatosAsync();
+                    await ShowInfoDialog("Éxito", "Donación actualizada correctamente");
+                }
+            }
+            catch (Exception ex)
+            {
+                await ShowInfoDialog("Error", $"Error al actualizar donación: {ex.Message}");
+            }
         }
     }
 
@@ -233,52 +214,15 @@ public sealed partial class DonacionesPage : Page, INotifyPropertyChanged
             return;
         }
 
-        var messagePanel = new StackPanel { Spacing = 12 };
-        
-        messagePanel.Children.Add(new TextBlock
-        {
-            Text = "¿Está seguro que desea eliminar esta donación?",
-            TextWrapping = TextWrapping.Wrap
-        });
-
-        messagePanel.Children.Add(new TextBlock
-        {
-            Text = $"ID Donación: {donacionSeleccionada.idDonacion}",
-            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-            TextWrapping = TextWrapping.Wrap
-        });
-
-        messagePanel.Children.Add(new TextBlock
-        {
-            Text = $"Paciente ID: {donacionSeleccionada.idPaciente}",
-            TextWrapping = TextWrapping.Wrap
-        });
-
-        messagePanel.Children.Add(new TextBlock
-        {
-            Text = $"Procedimiento: {donacionSeleccionada.procedimiento}",
-            TextWrapping = TextWrapping.Wrap
-        });
-
-        messagePanel.Children.Add(new TextBlock
-        {
-            Text = $"Monto: ${donacionSeleccionada.total:N2}",
-            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-            TextWrapping = TextWrapping.Wrap
-        });
-
-        messagePanel.Children.Add(new TextBlock
-        {
-            Text = "\nEsta acción no se puede deshacer.",
-            FontStyle = Windows.UI.Text.FontStyle.Italic,
-            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Red),
-            TextWrapping = TextWrapping.Wrap
-        });
-
         var confirmDialog = new ContentDialog
         {
             Title = "Confirmar Eliminación",
-            Content = messagePanel,
+            Content = $"¿Está seguro que desea eliminar esta donación?\n\n" +
+                      $"ID Donación: {donacionSeleccionada.idDonacion}\n" +
+                      $"Paciente: {donacionSeleccionada.idPaciente}\n" +
+                      $"Procedimiento: {donacionSeleccionada.procedimiento}\n" +
+                      $"Monto: ${donacionSeleccionada.total:N2}\n\n" +
+                      $"Esta acción no se puede deshacer.",
             PrimaryButtonText = "Eliminar",
             CloseButtonText = "Cancelar",
             DefaultButton = ContentDialogButton.Close,
@@ -289,12 +233,21 @@ public sealed partial class DonacionesPage : Page, INotifyPropertyChanged
 
         if (result == ContentDialogResult.Primary)
         {
-            DonacionesCollection.Remove(donacionSeleccionada);
-            ActualizarListaFiltrada(SearchBox?.Text ?? "");
-            EmptyState.Visibility = DonacionesCollection.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-            DonacionesListView.SelectedItem = null;
-
-            await ShowInfoDialog("Éxito", "Donación eliminada correctamente");
+            try
+            {
+                var donacion = await _context.Donaciones.FindAsync(donacionSeleccionada.idDonacion);
+                if (donacion != null)
+                {
+                    _context.Donaciones.Remove(donacion);
+                    await _context.SaveChangesAsync();
+                    await CargarDatosAsync();
+                    await ShowInfoDialog("Éxito", "Donación eliminada correctamente");
+                }
+            }
+            catch (Exception ex)
+            {
+                await ShowInfoDialog("Error", $"Error al eliminar donación: {ex.Message}");
+            }
         }
     }
 
@@ -307,42 +260,71 @@ public sealed partial class DonacionesPage : Page, INotifyPropertyChanged
             return;
         }
 
-        var paciente = Pacientes.FirstOrDefault(p => p.cedula == donacionSeleccionada.idPaciente);
-        if (paciente != null)
+        try
         {
-            await ShowInfoDialog("Información del Paciente", 
-                $"ID: {paciente.cedula}\n" +
-                $"Nombre: {paciente.nombre}\n\n" +
-                $"Esta funcionalidad puede navegar a la página de pacientes.");
+            var paciente = await _context.Pacientes
+                .FirstOrDefaultAsync(p => p.cedula == donacionSeleccionada.idPaciente);
+
+            if (paciente != null)
+            {
+                var donacionesPaciente = await _context.Donaciones
+                    .Where(d => d.idPaciente == paciente.cedula)
+                    .ToListAsync();
+
+                var totalDonado = donacionesPaciente.Sum(d => d.total);
+                var totalSolicitado = donacionesPaciente.Sum(d => d.montoSolicitado);
+
+                await ShowInfoDialog("Información del Paciente",
+                    $"Cédula: {paciente.cedula}\n" +
+                    $"Nombre: {paciente.nombre}\n" +
+                    $"Teléfono: {paciente.telefono ?? "N/A"}\n" +
+                    $"Celular: {paciente.celular ?? "N/A"}\n" +
+                    $"Área: {paciente.area ?? "N/A"}\n\n" +
+                    $"DONACIONES:\n" +
+                    $"Total de donaciones: {donacionesPaciente.Count}\n" +
+                    $"Monto solicitado: ${totalSolicitado:N2}\n" +
+                    $"Monto donado: ${totalDonado:N2}");
+            }
+            else
+            {
+                await ShowInfoDialog("Error", "No se encontró el paciente asociado");
+            }
         }
-        else
+        catch (Exception ex)
         {
-            await ShowInfoDialog("Error", "No se encontró el paciente asociado");
+            await ShowInfoDialog("Error", $"Error al cargar información del paciente: {ex.Message}");
         }
     }
 
-    private async void BtnGenerarReporte_Click(object sender, RoutedEventArgs e)
+    private async void BtnActualizar_Click(object sender, RoutedEventArgs e)
     {
-        // TODO: Implementar generación de reportes
-        await ShowInfoDialog("Generar Reporte", 
-            "Funcionalidad de generación de reportes en desarrollo.\n\n" +
-            $"Total de donaciones: {DonacionesFiltradas.Count}\n" +
-            $"Monto total: ${DonacionesFiltradas.Sum(d => d.total):N2}");
+        await CargarDatosAsync();
+        await ShowInfoDialog("Actualizado", "Los datos han sido actualizados correctamente");
     }
 
     private async Task<Donaciones> MostrarDialogoDonacion(Donaciones donacionExistente)
     {
         bool esEdicion = donacionExistente != null;
 
-        // Selector de paciente
         var pacienteCombo = new ComboBox
         {
-            Header = "Paciente",
+            Header = "Paciente *",
             PlaceholderText = "Seleccione un paciente",
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            ItemsSource = Pacientes,
-            DisplayMemberPath = "nombre"
+            ItemsSource = Pacientes
         };
+
+        // Crear el DisplayMemberPath manualmente porque necesitamos mostrar cédula y nombre
+        pacienteCombo.ItemTemplate = new DataTemplate();
+        var factory = Microsoft.UI.Xaml.Markup.XamlReader.Load(
+            @"<DataTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'>
+                <StackPanel Orientation='Horizontal' Spacing='8'>
+                    <TextBlock Text='{Binding cedula}' FontWeight='SemiBold'/>
+                    <TextBlock Text='-'/>
+                    <TextBlock Text='{Binding nombre}'/>
+                </StackPanel>
+            </DataTemplate>") as DataTemplate;
+        pacienteCombo.ItemTemplate = factory;
 
         if (esEdicion)
         {
@@ -351,14 +333,14 @@ public sealed partial class DonacionesPage : Page, INotifyPropertyChanged
 
         var fechaPicker = new CalendarDatePicker
         {
-            Header = "Fecha de Donación",
+            Header = "Fecha de Donación *",
             Date = donacionExistente?.Fecha != null ? new DateTimeOffset(donacionExistente.Fecha) : DateTimeOffset.Now,
             MaxDate = DateTimeOffset.Now.AddYears(1)
         };
 
         var procedimientoBox = new TextBox
         {
-            Header = "Procedimiento Médico",
+            Header = "Procedimiento Médico *",
             PlaceholderText = "Descripción del procedimiento",
             AcceptsReturn = true,
             TextWrapping = TextWrapping.Wrap,
@@ -368,7 +350,7 @@ public sealed partial class DonacionesPage : Page, INotifyPropertyChanged
 
         var montoSolicitadoBox = new NumberBox
         {
-            Header = "Monto Solicitado (RD$)",
+            Header = "Monto Solicitado (RD$) *",
             PlaceholderText = "0.00",
             SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Hidden,
             Minimum = 0,
@@ -410,7 +392,6 @@ public sealed partial class DonacionesPage : Page, INotifyPropertyChanged
             Height = 20
         };
 
-        // Calcular total y porcentaje automáticamente
         void ActualizarTotal()
         {
             totalBox.Value = valorDonacionBox.Value;
@@ -419,7 +400,7 @@ public sealed partial class DonacionesPage : Page, INotifyPropertyChanged
             {
                 var porcentaje = (valorDonacionBox.Value / montoSolicitadoBox.Value) * 100;
                 porcentajeText.Text = $"Porcentaje completado: {porcentaje:F1}%";
-                progressBar.Value = porcentaje;
+                progressBar.Value = Math.Min(porcentaje, 100);
                 
                 if (porcentaje >= 100)
                     porcentajeText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Green);
@@ -438,7 +419,6 @@ public sealed partial class DonacionesPage : Page, INotifyPropertyChanged
         valorDonacionBox.ValueChanged += (s, args) => ActualizarTotal();
         montoSolicitadoBox.ValueChanged += (s, args) => ActualizarTotal();
 
-        // Inicializar valores
         ActualizarTotal();
 
         var observacionBox = new TextBox
@@ -489,7 +469,6 @@ public sealed partial class DonacionesPage : Page, INotifyPropertyChanged
 
         if (result == ContentDialogResult.Primary)
         {
-            // Validaciones
             if (pacienteCombo.SelectedItem == null)
             {
                 await ShowInfoDialog("Error", "Debe seleccionar un paciente");
@@ -538,7 +517,7 @@ public sealed partial class DonacionesPage : Page, INotifyPropertyChanged
 
     private async Task ShowInfoDialog(string title, string message)
     {
-        ContentDialog dialog = new ContentDialog
+        var dialog = new ContentDialog
         {
             Title = title,
             Content = message,
