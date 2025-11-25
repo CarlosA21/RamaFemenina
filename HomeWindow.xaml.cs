@@ -2,6 +2,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Navigation;
 
 namespace RamaFemenina;
 
@@ -36,24 +37,43 @@ public sealed partial class HomeWindow : Window
         if (args.SelectedItemContainer != null)
         {
             var tag = args.SelectedItemContainer.Tag?.ToString();
+            Type? pageType = null;
 
             switch (tag)
             {
                 case "Pacientes":
-                    ContentFrame.Navigate(typeof(PacientesPage));
+                    pageType = typeof(PacientesPage);
+                    break;
+                case "Clientes":
+                    pageType = typeof(ClientesPage);
                     break;
                 case "Donaciones":
-                    ContentFrame.Navigate(typeof(DonacionesPage));
+                    pageType = typeof(DonacionesPage);
                     break;
                 case "Cheques":
-                    ContentFrame.Navigate(typeof(ChequesPage));
+                    pageType = typeof(ChequesPage);
                     break;
                 case "Recibos":
-                    ContentFrame.Navigate(typeof(ReciboPage));
+                    pageType = typeof(ReciboPage);
                     break;
                 case "CajaChica":
-                    ContentFrame.Navigate(typeof(CajaChicaPage));
+                    pageType = typeof(CajaChicaPage);
                     break;
+                case "Reportes":
+                    pageType = typeof(ReportPage);
+                    break;
+                case "Facturacion":
+                    pageType = typeof(BlankPage1); //facturacionPage
+                    break;
+            }
+
+            if (pageType != null)
+            {
+                // Solo navegar si no estamos ya en esa página
+                if (ContentFrame.CurrentSourcePageType != pageType)
+                {
+                    ContentFrame.Navigate(pageType);
+                }
             }
         }
     }

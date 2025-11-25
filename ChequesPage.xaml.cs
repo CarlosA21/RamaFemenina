@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
+using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using RamaFemenina.Models;
@@ -21,6 +22,7 @@ public sealed partial class ChequesPage : Page, INotifyPropertyChanged
 {
     private readonly RamaFemeninaContext _context;
     private bool _isChequeSelected;
+    private bool _datosYaCargados = false;
     
     // Configuración de posiciones de impresión (en milímetros)
     private float nombreX = 15;
@@ -61,19 +63,44 @@ public sealed partial class ChequesPage : Page, INotifyPropertyChanged
     {
         InitializeComponent();
         
+        // Habilitar caché de navegación
+        NavigationCacheMode = NavigationCacheMode.Enabled;
+        
         var app = Application.Current as App;
         _context = app!.Services.GetRequiredService<RamaFemeninaContext>();
         
         ChequesCollection = new ObservableCollection<Cheques>();
         ChequesFiltrados = new ObservableCollection<Cheques>();
         
-        _ = CargarChequesAsync();
+        // Cargar datos solo si no se han cargado antes
+        if (!_datosYaCargados)
+        {
+            _ = CargarChequesAsync();
+        }
+        
+        // Iniciar animación de entrada
+        this.Loaded += (s, e) => 
+        {
+            try 
+            { 
+                if (this.FindName("FadeInStoryboard") is Storyboard storyboard)
+                {
+                    storyboard.Begin();
+                }
+            } 
+            catch { }
+        };
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        _ = CargarChequesAsync();
+        
+        // Solo recargar si es la primera vez o si se pasa un parámetro para forzar recarga
+        if (!_datosYaCargados || e.Parameter?.ToString() == "Reload")
+        {
+            _ = CargarChequesAsync();
+        }
     }
 
     private async Task CargarChequesAsync()
@@ -89,12 +116,55 @@ public sealed partial class ChequesPage : Page, INotifyPropertyChanged
             }
 
             ActualizarListaFiltrada();
-            ActualizarResumen();
-            EmptyState.Visibility = ChequesCollection.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            ActualizarEstadisticas();
+            
+            // Controlar visibilidad
+            var hayCheques = ChequesCollection.Count > 0;
+            if (this.FindName("ListViewScroller") is UIElement listScroller)
+                listScroller.Visibility = hayCheques ? Visibility.Visible : Visibility.Collapsed;
+            EmptyState.Visibility = hayCheques ? Visibility.Collapsed : Visibility.Visible;
+            
+            // Marcar que los datos ya fueron cargados
+            _datosYaCargados = true;
         }
         catch (Exception ex)
         {
             await ShowInfoDialog("Error", $"Error al cargar cheques: {ex.Message}");
+        }
+    }
+
+    private void ActualizarEstadisticas()
+    {
+        try
+        {
+            // Total de cheques
+            if (this.FindName("txtTotalCheques") is TextBlock totalText)
+                totalText.Text = ChequesCollection.Count.ToString();
+                
+            if (this.FindName("txtContador") is Microsoft.UI.Xaml.Documents.Run contadorRun)
+                contadorRun.Text = ChequesCollection.Count.ToString();
+            
+            // Calcular totales
+            var montoTotal = ChequesCollection.Sum(c => c.monto);
+            var promedio = ChequesCollection.Count > 0 ? montoTotal / ChequesCollection.Count : 0;
+            
+            // Cheques de este mes
+            var primerDiaMes = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+            var chequesEsteMes = ChequesCollection.Where(c => c.Fecha >= primerDiaMes).ToList();
+            var montoEsteMes = chequesEsteMes.Sum(c => c.monto);
+            
+            if (this.FindName("txtMontoTotal") is TextBlock totalMontoText)
+                totalMontoText.Text = $"RD$ {montoTotal:N2}";
+            
+            if (this.FindName("txtPromedio") is TextBlock promedioText)
+                promedioText.Text = $"RD$ {promedio:N2}";
+            
+            if (this.FindName("txtEsteMes") is TextBlock mesText)
+                mesText.Text = $"RD$ {montoEsteMes:N2}";
+        }
+        catch
+        {
+            // Ignorar errores de estadísticas
         }
     }
 
@@ -119,18 +189,10 @@ public sealed partial class ChequesPage : Page, INotifyPropertyChanged
         }
 
         ChequesListView.ItemsSource = ChequesFiltrados;
-        ActualizarResumen();
-    }
-
-    private void ActualizarResumen()
-    {
-        if (ChequesFiltrados == null || TotalChequesText == null) return;
         
-        var totalCheques = ChequesFiltrados.Count;
-        var montoTotal = ChequesFiltrados.Sum(c => c.monto);
-
-        TotalChequesText.Text = $"Total de cheques: {totalCheques}";
-        TotalMontoText.Text = $"Monto total: ${montoTotal:N2}";
+        // Actualizar contador con resultados filtrados
+        if (this.FindName("txtContador") is Microsoft.UI.Xaml.Documents.Run contadorRun)
+            contadorRun.Text = ChequesFiltrados.Count.ToString();
     }
 
     private void SearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
@@ -514,8 +576,8 @@ public sealed partial class ChequesPage : Page, INotifyPropertyChanged
 
     private async void BtnActualizar_Click(object sender, RoutedEventArgs e)
     {
+        _datosYaCargados = false;
         await CargarChequesAsync();
-        await ShowInfoDialog("Actualizado", "Los datos han sido actualizados correctamente");
     }
 
     private async Task<Cheques> MostrarDialogoCheque(Cheques chequeExistente)
@@ -835,17 +897,90 @@ public sealed partial class ChequesPage : Page, INotifyPropertyChanged
     private void ChequesListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         IsChequeSelected = ChequesListView.SelectedItem != null;
+        
+        // Actualizar estado de botones directamente
+        var haySeleccion = IsChequeSelected;
+        
+        if (this.FindName("btnEditar") is Button editBtn)
+            editBtn.IsEnabled = haySeleccion;
+            
+        if (this.FindName("btnEliminar") is Button delBtn)
+            delBtn.IsEnabled = haySeleccion;
+            
+        if (this.FindName("btnImprimir") is Button printBtn)
+            printBtn.IsEnabled = haySeleccion;
     }
 
     private async Task ShowInfoDialog(string title, string message)
     {
+        // Crear contenido mejorado
+        var contentStack = new StackPanel
+        {
+            Spacing = 12,
+            MaxWidth = 450
+        };
+
+        // Icono según el tipo de mensaje
+        string iconGlyph = "\uE946"; // Info por defecto
+        Microsoft.UI.Xaml.Media.Brush iconColor = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorAttentionBrush"];
+
+        if (title.Contains("Error") || title.Contains("?"))
+        {
+            iconGlyph = "\uE783"; // Error
+            iconColor = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorCriticalBrush"];
+        }
+        else if (title.Contains("Éxito") || title.Contains("?") || title.Contains("??"))
+        {
+            iconGlyph = "\uE73E"; // Checkmark
+            iconColor = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorSuccessBrush"];
+        }
+        else if (title.Contains("Actualizado") || title.Contains("??"))
+        {
+            iconGlyph = "\uE72C"; // Refresh
+            iconColor = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorCautionBrush"];
+        }
+
+        var iconBorder = new Border
+        {
+            Width = 56,
+            Height = 56,
+            CornerRadius = new CornerRadius(28),
+            Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 12)
+        };
+
+        var icon = new FontIcon
+        {
+            Glyph = iconGlyph,
+            FontSize = 28,
+            Foreground = iconColor,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        iconBorder.Child = icon;
+
+        var messageText = new TextBlock
+        {
+            Text = message,
+            TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Center,
+            FontSize = 14,
+            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorPrimaryBrush"]
+        };
+
+        contentStack.Children.Add(iconBorder);
+        contentStack.Children.Add(messageText);
+
         var dialog = new ContentDialog
         {
             Title = title,
-            Content = message,
-            CloseButtonText = "Ok",
+            Content = contentStack,
+            CloseButtonText = "Aceptar",
+            DefaultButton = ContentDialogButton.Close,
             XamlRoot = this.XamlRoot
         };
+
         await dialog.ShowAsync();
     }
 }

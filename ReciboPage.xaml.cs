@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
+using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using RamaFemenina.Models;
@@ -21,6 +22,7 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
 {
     private readonly RamaFemeninaContext _context;
     private bool _isReciboSelected;
+    private bool _datosYaCargados = false;
     
     // Configuración de posiciones de impresión (en milímetros)
     private float numeroReciboX = 150;
@@ -67,16 +69,41 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
         
         InitializeComponent();
         
+        // Habilitar caché de navegación
+        NavigationCacheMode = NavigationCacheMode.Enabled;
+        
         var app = Application.Current as App;
         _context = app!.Services.GetRequiredService<RamaFemeninaContext>();
         
-        _ = CargarRecibosAsync();
+        // Cargar datos solo si no se han cargado antes
+        if (!_datosYaCargados)
+        {
+            _ = CargarRecibosAsync();
+        }
+        
+        // Iniciar animación de entrada
+        this.Loaded += (s, e) => 
+        {
+            try 
+            { 
+                if (this.FindName("FadeInStoryboard") is Storyboard storyboard)
+                {
+                    storyboard.Begin();
+                }
+            } 
+            catch { }
+        };
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        _ = CargarRecibosAsync();
+        
+        // Solo recargar si es la primera vez o si se pasa un parámetro para forzar recarga
+        if (!_datosYaCargados || e.Parameter?.ToString() == "Reload")
+        {
+            _ = CargarRecibosAsync();
+        }
     }
 
     private async Task CargarRecibosAsync()
@@ -92,7 +119,15 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
             }
 
             ActualizarLista();
-            EmptyState.Visibility = RecibosCollection.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            
+            // Controlar visibilidad
+            var hayRecibos = RecibosCollection.Count > 0;
+            if (this.FindName("ListViewScroller") is UIElement listScroller)
+                listScroller.Visibility = hayRecibos ? Visibility.Visible : Visibility.Collapsed;
+            EmptyState.Visibility = hayRecibos ? Visibility.Collapsed : Visibility.Visible;
+            
+            // Marcar que los datos ya fueron cargados
+            _datosYaCargados = true;
         }
         catch (Exception ex)
         {
@@ -100,6 +135,44 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
         }
     }
 
+    private void ActualizarEstadisticas(IEnumerable<Recibo> recibos)
+    {
+        try
+        {
+            var listaRecibos = recibos.ToList();
+            
+            // Total de recibos
+            if (this.FindName("txtTotalRecibos") is TextBlock totalText)
+                totalText.Text = listaRecibos.Count.ToString();
+                
+            if (this.FindName("txtContador") is Microsoft.UI.Xaml.Documents.Run contadorRun)
+                contadorRun.Text = listaRecibos.Count.ToString();
+            
+            // Calcular totales
+            var totalIngresos = listaRecibos.Where(r => r.TipoRecibo == "Ingreso").Sum(r => r.Monto);
+            var totalEgresos = listaRecibos.Where(r => r.TipoRecibo == "Egreso").Sum(r => r.Monto);
+            var balance = totalIngresos - totalEgresos;
+            
+            if (this.FindName("txtTotalIngresos") is TextBlock ingresosText)
+                ingresosText.Text = $"RD$ {totalIngresos:N2}";
+            
+            if (this.FindName("txtTotalEgresos") is TextBlock egresosText)
+                egresosText.Text = $"RD$ {totalEgresos:N2}";
+            
+            if (this.FindName("txtBalance") is TextBlock balanceText)
+            {
+                balanceText.Text = $"RD$ {balance:N2}";
+                balanceText.Foreground = balance >= 0 
+                    ? new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Green)
+                    : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Red);
+            }
+        }
+        catch
+        {
+            // Ignorar errores de estadísticas
+        }
+    }
+    
     private void ActualizarLista(string searchText = "")
     {
         if (RecibosCollection == null || RecibosListView == null) return;
@@ -131,9 +204,10 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
 
         // Aplicar ordenamiento
         var ordenados = AplicarOrdenamiento(recibos);
+        var listaFinal = ordenados.ToList();
 
-        RecibosListView.ItemsSource = ordenados.ToList();
-        ActualizarResumen(ordenados);
+        RecibosListView.ItemsSource = listaFinal;
+        ActualizarEstadisticas(listaFinal);
     }
 
     private IEnumerable<Recibo> AplicarOrdenamiento(IEnumerable<Recibo> recibos)
@@ -149,27 +223,6 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
             4 => recibos.OrderBy(r => r.NumeroRecibo), // Número de Recibo
             _ => recibos.OrderByDescending(r => r.Fecha)
         };
-    }
-
-    private void ActualizarResumen(IEnumerable<Recibo> recibos = null)
-    {
-        if (TotalRecibosText == null) return;
-        
-        var recibosParaResumen = recibos ?? RecibosCollection;
-        var listaRecibos = recibosParaResumen.ToList();
-        
-        var totalRecibos = listaRecibos.Count;
-        var totalIngresos = listaRecibos.Where(r => r.TipoRecibo == "Ingreso").Sum(r => r.Monto);
-        var totalEgresos = listaRecibos.Where(r => r.TipoRecibo == "Egreso").Sum(r => r.Monto);
-        var totalEfectivo = listaRecibos.Where(r => r.EsEfectivo).Sum(r => r.Monto);
-        var totalTransferencia = listaRecibos.Where(r => r.EsTransferencia).Sum(r => r.Monto);
-        var totalCheque = listaRecibos.Where(r => r.EsCheque).Sum(r => r.Monto);
-
-        TotalRecibosText.Text = $"Total de recibos: {totalRecibos}";
-        TotalIngresosText.Text = $"Ingresos: ${totalIngresos:N2}";
-        TotalEgresosText.Text = $"Egresos: ${totalEgresos:N2}";
-        TotalEfectivoText.Text = $"Efectivo: ${totalEfectivo:N2}";
-        TotalChequeText.Text = $"Cheque: ${totalCheque:N2}";
     }
 
     private void SearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
@@ -188,6 +241,23 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
     private void TipoRecibo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         ActualizarLista(SearchBox?.Text ?? "");
+    }
+
+    private void RecibosListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        IsReciboSelected = RecibosListView.SelectedItem != null;
+        
+        // Actualizar estado de botones directamente
+        var haySeleccion = IsReciboSelected;
+        
+        if (this.FindName("btnEditar") is Button editBtn)
+            editBtn.IsEnabled = haySeleccion;
+            
+        if (this.FindName("btnEliminar") is Button delBtn)
+            delBtn.IsEnabled = haySeleccion;
+            
+        if (this.FindName("btnImprimir") is Button printBtn)
+            printBtn.IsEnabled = haySeleccion;
     }
 
     private async void BtnNuevoRecibo_Click(object sender, RoutedEventArgs e)
@@ -633,14 +703,14 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
 
         reportePanel.Children.Add(new TextBlock
         {
-            Text = $"• Ingresos: ${totalIngresos:N2} ({recibosActuales.Count(r => r.TipoRecibo == "Ingreso")} recibos)",
+            Text = $"?? Ingresos: ${totalIngresos:N2} ({recibosActuales.Count(r => r.TipoRecibo == "Ingreso")} recibos)",
             TextWrapping = TextWrapping.Wrap,
             Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Green)
         });
 
         reportePanel.Children.Add(new TextBlock
         {
-            Text = $"• Egresos: ${totalEgresos:N2} ({recibosActuales.Count(r => r.TipoRecibo == "Egreso")} recibos)",
+            Text = $"?? Egresos: ${totalEgresos:N2} ({recibosActuales.Count(r => r.TipoRecibo == "Egreso")} recibos)",
             TextWrapping = TextWrapping.Wrap,
             Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Red)
         });
@@ -661,25 +731,25 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
 
         reportePanel.Children.Add(new TextBlock
         {
-            Text = $"• Efectivo: ${totalEfectivo:N2} ({recibosActuales.Count(r => r.EsEfectivo)} recibos)",
+            Text = $"?? Efectivo: ${totalEfectivo:N2} ({recibosActuales.Count(r => r.EsEfectivo)} recibos)",
             TextWrapping = TextWrapping.Wrap
         });
 
         reportePanel.Children.Add(new TextBlock
         {
-            Text = $"• Transferencia: ${totalTransferencia:N2} ({recibosActuales.Count(r => r.EsTransferencia)} recibos)",
+            Text = $"?? Transferencia: ${totalTransferencia:N2} ({recibosActuales.Count(r => r.EsTransferencia)} recibos)",
             TextWrapping = TextWrapping.Wrap
         });
 
         reportePanel.Children.Add(new TextBlock
         {
-            Text = $"• Cheque: ${totalCheque:N2} ({recibosActuales.Count(r => r.EsCheque)} recibos)",
+            Text = $"?? Cheque: ${totalCheque:N2} ({recibosActuales.Count(r => r.EsCheque)} recibos)",
             TextWrapping = TextWrapping.Wrap
         });
 
         var dialog = new ContentDialog
         {
-            Title = "Reporte de Recibos",
+            Title = "?? Reporte de Recibos",
             Content = new ScrollViewer
             {
                 Content = reportePanel,
@@ -1050,7 +1120,7 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
     /// </summary>
     private string ConvertirCentenas(int numero)
     {
-        string[] centenas = { 
+        string[] cientos = { 
             "", "Ciento", "Doscientos", "Trescientos", "Cuatrocientos", 
             "Quinientos", "Seiscientos", "Setecientos", "Ochocientos", "Novecientos" 
         };
@@ -1064,7 +1134,7 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
             return "Cien";
         }
 
-        string resultado = centenas[c];
+        string resultado = cientos[c];
         
         if (resto > 0)
         {
@@ -1128,20 +1198,71 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
         return "";
     }
 
-    private void RecibosListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        IsReciboSelected = RecibosListView.SelectedItem != null;
-    }
-
     private async Task ShowInfoDialog(string title, string message)
     {
-        ContentDialog dialog = new ContentDialog
+        // Crear contenido mejorado
+        var contentStack = new StackPanel
+        {
+            Spacing = 12,
+            MaxWidth = 450
+        };
+
+        // Icono según el tipo de mensaje
+        string iconGlyph = "\uE946"; // Info por defecto
+        Microsoft.UI.Xaml.Media.Brush iconColor = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorAttentionBrush"];
+
+        if (title.Contains("Error") || title.Contains("?"))
+        {
+            iconGlyph = "\uE783"; // Error
+            iconColor = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorCriticalBrush"];
+        }
+        else if (title.Contains("Éxito") || title.Contains("?") || title.Contains("??"))
+        {
+            iconGlyph = "\uE73E"; // Checkmark
+            iconColor = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorSuccessBrush"];
+        }
+
+        var iconBorder = new Border
+        {
+            Width = 56,
+            Height = 56,
+            CornerRadius = new CornerRadius(28),
+            Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 12)
+        };
+
+        var icon = new FontIcon
+        {
+            Glyph = iconGlyph,
+            FontSize = 28,
+            Foreground = iconColor,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        iconBorder.Child = icon;
+
+        var messageText = new TextBlock
+        {
+            Text = message,
+            TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Center,
+            FontSize = 14,
+            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorPrimaryBrush"]
+        };
+
+        contentStack.Children.Add(iconBorder);
+        contentStack.Children.Add(messageText);
+
+        var dialog = new ContentDialog
         {
             Title = title,
-            Content = message,
-            CloseButtonText = "Ok",
+            Content = contentStack,
+            CloseButtonText = "Aceptar",
+            DefaultButton = ContentDialogButton.Close,
             XamlRoot = this.XamlRoot
         };
+
         await dialog.ShowAsync();
     }
 }

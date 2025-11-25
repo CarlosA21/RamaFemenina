@@ -76,7 +76,25 @@
                     <FontIcon Glyph="&#xE8C8;"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
+
+            <!-- Reportes -->
+            <NavigationViewItem 
+                Content="Reportes" 
+                Tag="Reportes">
+                <NavigationViewItem.Icon>
+                    <FontIcon Glyph="&#xE8A7;"/>
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
             
+            <!-- Facturacion-->
+            <NavigationViewItem 
+                Content="Facturacion" 
+                Tag="Facturacion">     
+                <NavigationViewItem.Icon>
+                    <FontIcon Glyph="&#xE8A7;"/>
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+
         </NavigationView.MenuItems>
 
         <NavigationView.PaneHeader>

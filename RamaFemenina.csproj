@@ -15,12 +15,18 @@
   <ItemGroup>
     <None Remove="CajaChicaPage.xaml" />
     <None Remove="ChequesPage.xaml" />
+    <None Remove="ClientesPage.xaml" />
     <None Remove="CreateUser.xaml" />
     <None Remove="Donaciones.xaml" />
     <None Remove="DonacionesPage.xaml" />
     <None Remove="HomeWindow.xaml" />
     <None Remove="PacientesPage.xaml" />
     <None Remove="ReciboPage.xaml" />
+    <None Remove="ReportesPage.xaml" />
+    <None Remove="ReportPage.xaml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Page Remove="ReportesPage.xaml" />
   </ItemGroup>
 
   <ItemGroup>
@@ -37,6 +43,18 @@
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <Page Update="FacturacionPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="ClientesPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <None Update="ReportesPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </None>
+    <Page Update="ReportPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Update="CajaChicaPage.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -69,9 +87,19 @@
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.7175" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.251106002" />
     <PackageReference Include="System.Drawing.Common" Version="10.0.0" />
+    
+    <!-- iText7 para generación de PDFs (facturas y reportes) -->
+    <PackageReference Include="itext7" Version="8.0.2" />
+    <PackageReference Include="itext7.bouncy-castle-adapter" Version="8.0.2" />
   </ItemGroup>
+  
   <ItemGroup>
     <Page Update="ReciboPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="ReportesPage.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>
@@ -99,6 +127,9 @@
     <Page Update="HomeWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Service Include="{c0c07587-41a7-46c8-8fbd-3f9c8ebe2ddc}" />
   </ItemGroup>
 
   <!--

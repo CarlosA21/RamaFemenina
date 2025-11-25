@@ -10,144 +10,610 @@
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+    <Page.Resources>
+        <!-- Animaciones de entrada -->
+        <Storyboard x:Name="FadeInStoryboard">
+            <DoubleAnimation Storyboard.TargetName="MainContent"
+                           Storyboard.TargetProperty="Opacity"
+                           From="0" To="1" Duration="0:0:0.5">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetName="MainContent"
+                           Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                           From="20" To="0" Duration="0:0:0.5">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
 
-        <!-- Header -->
-        <StackPanel Grid.Row="0" Padding="24,24,24,16">
-            <TextBlock 
-                Text="Gestión de Pacientes"
-                Style="{StaticResource TitleTextBlockStyle}"
-                Margin="0,0,0,8"/>
-            <TextBlock 
-                Text="Administra la información de los pacientes"
-                Style="{StaticResource BodyTextBlockStyle}"
-                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-        </StackPanel>
+        <!-- Estilos modernos -->
+        <Style x:Key="ModernCard" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="20"/>
+            <Setter Property="Margin" Value="0,0,0,16"/>
+        </Style>
 
-        <!-- Content -->
-        <Grid Grid.Row="1" Padding="24,0,24,24">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
+        <Style x:Key="StatCard" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
+            <Setter Property="CornerRadius" Value="16"/>
+            <Setter Property="Padding" Value="24,20"/>
+            <Setter Property="MinHeight" Value="140"/>
+        </Style>
 
-            <!-- Toolbar -->
-            <CommandBar Grid.Row="0" DefaultLabelPosition="Right" Background="Transparent">
-                <AppBarButton 
-                    Icon="Add" 
-                    Label="Nuevo Paciente"
-                    Click="BtnNuevoPaciente_Click"/>
-                <AppBarButton 
-                    Icon="Edit" 
-                    Label="Editar"
-                    Click="BtnEditarPaciente_Click"
-                    IsEnabled="{x:Bind IsPatientSelected, Mode=OneWay}"/>
-                <AppBarButton 
-                    Icon="Delete" 
-                    Label="Eliminar"
-                    Click="BtnEliminarPaciente_Click"
-                    IsEnabled="{x:Bind IsPatientSelected, Mode=OneWay}"/>
-                <!--  Donaciones  -->
-                <AppBarButton 
-                    Icon="Calculator" 
-                    Label="Registrar Donación"
-                    Click="BtnRegistrarDonacion_Click"
-                    IsEnabled="{x:Bind IsPatientSelected, Mode=OneWay}"/>
-            </CommandBar>
+        <Style x:Key="GlassCard" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="16"/>
+        </Style>
 
-            <!-- Search Bar -->
-            <AutoSuggestBox
-                x:Name="SearchBox"
-                Grid.Row="1"
-                PlaceholderText="Buscar por nombre, cédula, teléfono, área..."
-                QueryIcon="Find"
-                Margin="0,8,0,8"
-                TextChanged="SearchBox_TextChanged"/>
+        <Style x:Key="ModernButton" TargetType="Button">
+            <Setter Property="Height" Value="48"/>
+            <Setter Property="MinWidth" Value="140"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="4"/>
+        </Style>
 
-            <!-- DataGrid / ListView -->
-            <Grid Grid.Row="2" Margin="0,8,0,0">
-                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                    <ListView
-                        x:Name="PacientesListView"
-                        SelectionMode="Single"
-                        SelectionChanged="PacientesListView_SelectionChanged">
-                        <ListView.Header>
-                            <Grid Padding="12,8" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" MinWidth="1200">
+        <Style x:Key="IconButton" TargetType="Button">
+            <Setter Property="Width" Value="48"/>
+            <Setter Property="Height" Value="48"/>
+            <Setter Property="CornerRadius" Value="24"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+
+        <!-- Gradientes -->
+        <LinearGradientBrush x:Key="PrimaryGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#667eea" Offset="0"/>
+            <GradientStop Color="#764ba2" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="SuccessGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#11998e" Offset="0"/>
+            <GradientStop Color="#38ef7d" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="DangerGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#eb3349" Offset="0"/>
+            <GradientStop Color="#f45c43" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="InfoGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#4facfe" Offset="0"/>
+            <GradientStop Color="#00f2fe" Offset="1"/>
+        </LinearGradientBrush>
+    </Page.Resources>
+
+    <Grid x:Name="MainContent" Margin="0">
+        <Grid.RenderTransform>
+            <TranslateTransform Y="0"/>
+        </Grid.RenderTransform>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24,20">
+            <Grid MaxWidth="1600">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Header con Gradiente Premium -->
+                <Border Grid.Row="0" 
+                       CornerRadius="16" 
+                       Padding="32,28"
+                       Margin="0,0,0,24"
+                       Background="{StaticResource PrimaryGradient}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="16">
+                                <Viewbox Width="40" Height="40">
+                                    <FontIcon Glyph="&#xE77B;" Foreground="White"/>
+                                </Viewbox>
+                                <TextBlock Text="Gestión de Pacientes"
+                                          FontSize="32"
+                                          FontWeight="Bold"
+                                          Foreground="White"
+                                          VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="Administración de pacientes y registro médico"
+                                      FontSize="16"
+                                      Foreground="#E3F2FD"
+                                      Opacity="0.9"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" 
+                                   VerticalAlignment="Center" 
+                                   Orientation="Horizontal" 
+                                   Spacing="12">
+                            <Button Style="{StaticResource IconButton}"
+                                   Background="#FFFFFF20"
+                                   BorderThickness="0"
+                                   ToolTipService.ToolTip="Actualizar datos"
+                                   Click="BtnActualizar_Click">
+                                <FontIcon Glyph="&#xE72C;" Foreground="White" FontSize="20"/>
+                            </Button>
+                            <Button Style="{StaticResource IconButton}"
+                                   Background="#FFFFFF20"
+                                   BorderThickness="0"
+                                   ToolTipService.ToolTip="Exportar datos">
+                                <FontIcon Glyph="&#xE896;" Foreground="White" FontSize="20"/>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Tarjetas de Estadísticas Modernas -->
+                <Grid Grid.Row="1" Margin="0,0,0,24">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="16"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="16"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="16"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Total Pacientes -->
+                    <Border Grid.Column="0" Style="{StaticResource StatCard}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            
+                            <Border Background="{StaticResource PrimaryGradient}"
+                                   Width="56" Height="56"
+                                   CornerRadius="12"
+                                   HorizontalAlignment="Left">
+                                <FontIcon Glyph="&#xE716;" Foreground="White" FontSize="28"/>
+                            </Border>
+
+                            <StackPanel Grid.Row="1" Margin="0,16,0,0">
+                                <TextBlock x:Name="txtTotalPacientes" 
+                                          Text="0" 
+                                          FontSize="36" 
+                                          FontWeight="Bold"/>
+                                <TextBlock Text="Total Pacientes" 
+                                          FontSize="14" 
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="4">
+                                <FontIcon Glyph="&#xE74E;" FontSize="12" Foreground="#11998e"/>
+                                <TextBlock Text="+12% este mes" FontSize="12" Foreground="#11998e"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Activos -->
+                    <Border Grid.Column="2" Style="{StaticResource StatCard}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            
+                            <Border Background="{StaticResource SuccessGradient}"
+                                   Width="56" Height="56"
+                                   CornerRadius="12"
+                                   HorizontalAlignment="Left">
+                                <FontIcon Glyph="&#xE8FB;" Foreground="White" FontSize="28"/>
+                            </Border>
+
+                            <StackPanel Grid.Row="1" Margin="0,16,0,0">
+                                <TextBlock x:Name="txtPacientesActivos" 
+                                          Text="0" 
+                                          FontSize="36" 
+                                          FontWeight="Bold"/>
+                                <TextBlock Text="Pacientes Activos" 
+                                          FontSize="14" 
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            </StackPanel>
+
+                            <ProgressBar Grid.Row="2" Value="85" Foreground="#11998e" Height="4"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Áreas -->
+                    <Border Grid.Column="4" Style="{StaticResource StatCard}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            
+                            <Border Background="{StaticResource InfoGradient}"
+                                   Width="56" Height="56"
+                                   CornerRadius="12"
+                                   HorizontalAlignment="Left">
+                                <FontIcon Glyph="&#xE8F4;" Foreground="White" FontSize="28"/>
+                            </Border>
+
+                            <StackPanel Grid.Row="1" Margin="0,16,0,0">
+                                <TextBlock x:Name="txtPorArea" 
+                                          Text="0" 
+                                          FontSize="36" 
+                                          FontWeight="Bold"/>
+                                <TextBlock Text="Áreas Activas" 
+                                          FontSize="14" 
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            </StackPanel>
+
+                            <Border Grid.Row="2" 
+                                   Background="{ThemeResource AccentAAFillColorTertiaryBrush}"
+                                   CornerRadius="8"
+                                   Padding="8,4">
+                                <TextBlock Text="6 regiones" FontSize="11" FontWeight="SemiBold"/>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- Nuevos este mes -->
+                    <Border Grid.Column="6" Style="{StaticResource StatCard}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            
+                            <Border Background="{StaticResource DangerGradient}"
+                                   Width="56" Height="56"
+                                   CornerRadius="12"
+                                   HorizontalAlignment="Left">
+                                <FontIcon Glyph="&#xE787;" Foreground="White" FontSize="28"/>
+                            </Border>
+
+                            <StackPanel Grid.Row="1" Margin="0,16,0,0">
+                                <TextBlock x:Name="txtUltimoMes" 
+                                          Text="N/A" 
+                                          FontSize="36" 
+                                          FontWeight="Bold"/>
+                                <TextBlock Text="Nuevos Este Mes" 
+                                          FontSize="14" 
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            </StackPanel>
+
+                            <TextBlock Grid.Row="2" 
+                                      Text="📅 Últimos 30 días" 
+                                      FontSize="12" 
+                                      Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- Barra de Herramientas Premium -->
+                <Border Grid.Row="2" Style="{StaticResource ModernCard}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Búsqueda Avanzada -->
+                        <Border Grid.Column="0" 
+                               Background="{ThemeResource ControlFillColorDefaultBrush}"
+                               CornerRadius="10"
+                               Padding="16,0"
+                               Height="52"
+                               BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                               BorderThickness="1">
+                            <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="100"/>
-                                    <ColumnDefinition Width="250"/>
-                                    <ColumnDefinition Width="120"/>
-                                    <ColumnDefinition Width="120"/>
-                                    <ColumnDefinition Width="120"/>
-                                    <ColumnDefinition Width="80"/>
-                                    <ColumnDefinition Width="100"/>
-                                    <ColumnDefinition Width="*" MinWidth="150"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="Cédula" FontWeight="SemiBold" Grid.Column="0"/>
-                                <TextBlock Text="Nombre Completo" FontWeight="SemiBold" Grid.Column="1"/>
-                                <TextBlock Text="Teléfono" FontWeight="SemiBold" Grid.Column="2"/>
-                                <TextBlock Text="Celular" FontWeight="SemiBold" Grid.Column="3"/>
-                                <TextBlock Text="N° Registro" FontWeight="SemiBold" Grid.Column="4"/>
-                                <TextBlock Text="Sexo" FontWeight="SemiBold" Grid.Column="5"/>
-                                <TextBlock Text="Área" FontWeight="SemiBold" Grid.Column="6"/>
-                                <TextBlock Text="Observaciones" FontWeight="SemiBold" Grid.Column="7"/>
-                            </Grid>
-                        </ListView.Header>
-                        
-                        <ListView.ItemTemplate>
-                            <DataTemplate x:DataType="models:Paciente">
-                                <Grid Padding="12,8" MinWidth="1200">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="100"/>
-                                        <ColumnDefinition Width="250"/>
-                                        <ColumnDefinition Width="120"/>
-                                        <ColumnDefinition Width="120"/>
-                                        <ColumnDefinition Width="120"/>
-                                        <ColumnDefinition Width="80"/>
-                                        <ColumnDefinition Width="100"/>
-                                        <ColumnDefinition Width="*" MinWidth="150"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="{x:Bind cedula}" Grid.Column="0"/>
-                                    <TextBlock Text="{x:Bind nombre}" Grid.Column="1" TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Text="{x:Bind telefono}" Grid.Column="2"/>
-                                    <TextBlock Text="{x:Bind celular}" Grid.Column="3"/>
-                                    <TextBlock Text="{x:Bind nrecord}" Grid.Column="4"/>
-                                    <TextBlock Text="{x:Bind sexo}" Grid.Column="5"/>
-                                    <TextBlock Text="{x:Bind area}" Grid.Column="6" TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Text="{x:Bind observaciones}" Grid.Column="7" TextTrimming="CharacterEllipsis"/>
-                                </Grid>
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
-                </ScrollViewer>
 
-                <!-- Empty State -->
-                <StackPanel 
-                    x:Name="EmptyState"
-                    Visibility="Collapsed"
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Center"
-                    Spacing="16">
-                    <TextBlock 
-                        Text="👥"
-                        FontSize="72"
-                        HorizontalAlignment="Center"/>
-                    <TextBlock 
-                        Text="No hay pacientes registrados"
-                        FontSize="20"
-                        FontWeight="SemiBold"
-                        HorizontalAlignment="Center"/>
-                    <TextBlock 
-                        Text="Haz clic en 'Nuevo Paciente' para comenzar"
-                        HorizontalAlignment="Center"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                </StackPanel>
+                                <FontIcon Glyph="&#xE721;" 
+                                         Grid.Column="0"
+                                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                         FontSize="20"
+                                         Margin="0,0,12,0"/>
+
+                                <AutoSuggestBox x:Name="SearchBox"
+                                               Grid.Column="1"
+                                               PlaceholderText="Buscar pacientes por nombre, cédula, área o teléfono..."
+                                               TextChanged="SearchBox_TextChanged"
+                                               Background="Transparent"
+                                               BorderThickness="0"
+                                               VerticalAlignment="Center"/>
+
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                                    <Button Style="{StaticResource IconButton}"
+                                           Width="36" Height="36"
+                                           Background="Transparent"
+                                           ToolTipService.ToolTip="Filtros avanzados">
+                                        <FontIcon Glyph="&#xE71C;" FontSize="16"/>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Botones de Acción -->
+                        <StackPanel Grid.Column="1" 
+                                   Orientation="Horizontal" 
+                                   Spacing="12" 
+                                   Margin="20,0,0,0">
+                            <Button Click="BtnNuevoPaciente_Click"
+                                   Style="{StaticResource ModernButton}"
+                                   Background="{StaticResource PrimaryGradient}"
+                                   Foreground="White"
+                                   BorderThickness="0">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <FontIcon Glyph="&#xE710;" FontSize="18"/>
+                                    <TextBlock Text="Nuevo Paciente" FontSize="14"/>
+                                </StackPanel>
+                            </Button>
+
+                            <Button x:Name="btnEditar"
+                                   Click="BtnEditarPaciente_Click"
+                                   Style="{StaticResource ModernButton}"
+                                   Background="{ThemeResource SystemFillColorAttentionBrush}"
+                                   IsEnabled="False">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Glyph="&#xE70F;" FontSize="16"/>
+                                    <TextBlock Text="Editar" FontSize="14"/>
+                                </StackPanel>
+                            </Button>
+
+                            <Button x:Name="btnEliminar"
+                                   Click="BtnEliminarPaciente_Click"
+                                   Style="{StaticResource ModernButton}"
+                                   Background="{StaticResource DangerGradient}"
+                                   Foreground="White"
+                                   BorderThickness="0"
+                                   IsEnabled="False">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Glyph="&#xE74D;" FontSize="16"/>
+                                    <TextBlock Text="Eliminar" FontSize="14"/>
+                                </StackPanel>
+                            </Button>
+
+                            <Button x:Name="btnDonacion"
+                                   Click="BtnRegistrarDonacion_Click"
+                                   Style="{StaticResource ModernButton}"
+                                   Background="{StaticResource SuccessGradient}"
+                                   Foreground="White"
+                                   BorderThickness="0"
+                                   IsEnabled="False">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Glyph="&#xE8EC;" FontSize="16"/>
+                                    <TextBlock Text="Donación" FontSize="14"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Tabs de Vista -->
+                <Border Grid.Row="3" 
+                       Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                       CornerRadius="12"
+                       Padding="8"
+                       Margin="0,0,0,16">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
+                            <ToggleButton Content="📋 Lista" IsChecked="True" MinWidth="100" Height="40" CornerRadius="8"/>
+                            <ToggleButton Content="📊 Estadísticas" MinWidth="120" Height="40" CornerRadius="8"/>
+                        </StackPanel>
+
+                        <TextBlock Grid.Column="2" 
+                                  VerticalAlignment="Center"
+                                  Margin="0,0,12,0"
+                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}">
+                            <Run Text="Total:"/>
+                            <Run x:Name="txtContador" Text="0" FontWeight="Bold"/>
+                            <Run Text="pacientes"/>
+                        </TextBlock>
+                    </Grid>
+                </Border>
+
+                <!-- Lista de Pacientes Premium -->
+                <Border Grid.Row="4" Style="{StaticResource ModernCard}" MinHeight="400">
+                    <Grid>
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto" 
+                                     VerticalScrollBarVisibility="Auto">
+                            <ListView x:Name="PacientesListView"
+                                     SelectionMode="Single"
+                                     SelectionChanged="PacientesListView_SelectionChanged"
+                                     CornerRadius="8">
+                                <ListView.ItemContainerStyle>
+                                    <Style TargetType="ListViewItem">
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                        <Setter Property="Padding" Value="0"/>
+                                        <Setter Property="Margin" Value="0,0,0,2"/>
+                                    </Style>
+                                </ListView.ItemContainerStyle>
+
+                                <ListView.Header>
+                                    <Border Background="{ThemeResource SystemFillColorSolidNeutralBackgroundBrush}"
+                                           CornerRadius="8,8,0,0"
+                                           Padding="20,16"
+                                           MinWidth="1400">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="140"/>
+                                                <ColumnDefinition Width="280"/>
+                                                <ColumnDefinition Width="140"/>
+                                                <ColumnDefinition Width="140"/>
+                                                <ColumnDefinition Width="120"/>
+                                                <ColumnDefinition Width="100"/>
+                                                <ColumnDefinition Width="160"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="CÉDULA" Grid.Column="0" FontWeight="Bold" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                            <TextBlock Text="NOMBRE COMPLETO" Grid.Column="1" FontWeight="Bold" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                            <TextBlock Text="TELÉFONO" Grid.Column="2" FontWeight="Bold" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                            <TextBlock Text="CELULAR" Grid.Column="3" FontWeight="Bold" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                            <TextBlock Text="N° REGISTRO" Grid.Column="4" FontWeight="Bold" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                            <TextBlock Text="SEXO" Grid.Column="5" FontWeight="Bold" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                            <TextBlock Text="ÁREA" Grid.Column="6" FontWeight="Bold" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                            <TextBlock Text="OBSERVACIONES" Grid.Column="7" FontWeight="Bold" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                        </Grid>
+                                    </Border>
+                                </ListView.Header>
+
+                                <ListView.ItemTemplate>
+                                    <DataTemplate x:DataType="models:Paciente">
+                                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                               CornerRadius="8"
+                                               Padding="20,16"
+                                               Margin="0,1"
+                                               MinWidth="1400"
+                                               BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                                               BorderThickness="0,0,0,1">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="140"/>
+                                                    <ColumnDefinition Width="280"/>
+                                                    <ColumnDefinition Width="140"/>
+                                                    <ColumnDefinition Width="140"/>
+                                                    <ColumnDefinition Width="120"/>
+                                                    <ColumnDefinition Width="100"/>
+                                                    <ColumnDefinition Width="160"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <TextBlock Text="{x:Bind cedula}" 
+                                                          Grid.Column="0"
+                                                          FontFamily="Consolas"
+                                                          FontSize="13"
+                                                          FontWeight="SemiBold"
+                                                          Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                                          VerticalAlignment="Center"/>
+
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock Text="{x:Bind nombre}" 
+                                                              FontWeight="SemiBold"
+                                                              FontSize="14"
+                                                              TextTrimming="CharacterEllipsis"/>
+                                                </StackPanel>
+
+                                                <TextBlock Text="{x:Bind telefono}" 
+                                                          Grid.Column="2"
+                                                          VerticalAlignment="Center"
+                                                          FontSize="13"/>
+
+                                                <TextBlock Text="{x:Bind celular}" 
+                                                          Grid.Column="3"
+                                                          VerticalAlignment="Center"
+                                                          FontSize="13"/>
+
+                                                <TextBlock Text="{x:Bind nrecord}" 
+                                                          Grid.Column="4"
+                                                          VerticalAlignment="Center"
+                                                          FontSize="13"/>
+
+                                                <Border Grid.Column="5"
+                                                       Background="{ThemeResource AccentAAFillColorTertiaryBrush}"
+                                                       CornerRadius="16"
+                                                       Padding="12,6"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center">
+                                                    <TextBlock Text="{x:Bind sexo}"
+                                                              FontSize="12"
+                                                              FontWeight="SemiBold"
+                                                              TextAlignment="Center"/>
+                                                </Border>
+
+                                                <Border Grid.Column="6"
+                                                       Background="{ThemeResource SystemFillColorSolidNeutralBrush}"
+                                                       CornerRadius="8"
+                                                       Padding="12,8"
+                                                       VerticalAlignment="Center">
+                                                    <TextBlock Text="{x:Bind area}"
+                                                              FontSize="12"
+                                                              FontWeight="Medium"
+                                                              TextTrimming="CharacterEllipsis"
+                                                              TextAlignment="Center"/>
+                                                </Border>
+
+                                                <TextBlock Text="{x:Bind observaciones}" 
+                                                          Grid.Column="7"
+                                                          VerticalAlignment="Center"
+                                                          FontSize="12"
+                                                          FontStyle="Italic"
+                                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                          TextTrimming="CharacterEllipsis"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </ScrollViewer>
+
+                        <!-- Empty State Ultra Moderno -->
+                        <StackPanel x:Name="EmptyState"
+                                   Visibility="Collapsed"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Spacing="32">
+                            <Viewbox Width="200" Height="200">
+                                <Grid>
+                                    <Ellipse Fill="{StaticResource PrimaryGradient}" Opacity="0.1"/>
+                                    <FontIcon Glyph="&#xE77B;" 
+                                             Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                             FontSize="120"/>
+                                </Grid>
+                            </Viewbox>
+                            
+                            <StackPanel Spacing="12">
+                                <TextBlock Text="No hay pacientes registrados"
+                                          FontSize="28"
+                                          FontWeight="Bold"
+                                          HorizontalAlignment="Center"/>
+                                <TextBlock Text="Comienza agregando tu primer paciente para gestionar la información médica"
+                                          HorizontalAlignment="Center"
+                                          TextAlignment="Center"
+                                          MaxWidth="500"
+                                          TextWrapping="Wrap"
+                                          FontSize="16"
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            </StackPanel>
+
+                            <Button Click="BtnNuevoPaciente_Click"
+                                   Background="{StaticResource PrimaryGradient}"
+                                   Foreground="White"
+                                   BorderThickness="0"
+                                   Height="56"
+                                   MinWidth="220"
+                                   CornerRadius="12"
+                                   FontSize="16"
+                                   FontWeight="SemiBold">
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <FontIcon Glyph="&#xE710;" FontSize="20"/>
+                                    <TextBlock Text="Agregar Primer Paciente"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
             </Grid>
-        </Grid>
+        </ScrollViewer>
     </Grid>
 </Page>

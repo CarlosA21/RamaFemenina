@@ -1,0 +1,832 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="RamaFemenina.ReportPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:RamaFemenina"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Page.Resources>
+        <!-- Estilos personalizados -->
+        <Style x:Key="ModernCardBorder" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="20"/>
+            <Setter Property="Margin" Value="8"/>
+            <Setter Property="Shadow">
+                <Setter.Value>
+                    <ThemeShadow />
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ReportCardBorder" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Margin" Value="0,0,0,12"/>
+            <Setter Property="Shadow">
+                <Setter.Value>
+                    <ThemeShadow />
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="GradientButton" TargetType="Button">
+            <Setter Property="Height" Value="48"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="Margin" Value="0,4"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+
+        <Style x:Key="IconButton" TargetType="Button">
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="CornerRadius" Value="20"/>
+            <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+        </Style>
+
+        <Style x:Key="ModernTextBox" TargetType="TextBox">
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+
+        <Style x:Key="IconTextBlock" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe Fluent Icons"/>
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,12,0"/>
+        </Style>
+
+        <Style x:Key="StatCardStyle" TargetType="Border">
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="MinWidth" Value="160"/>
+            <Setter Property="Shadow">
+                <Setter.Value>
+                    <ThemeShadow />
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Gradientes para botones -->
+        <LinearGradientBrush x:Key="PrimaryGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#667eea" Offset="0"/>
+            <GradientStop Color="#764ba2" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="SuccessGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#56ab2f" Offset="0"/>
+            <GradientStop Color="#a8e6cf" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="DangerGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#ff6b6b" Offset="0"/>
+            <GradientStop Color="#ee5a52" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="InfoGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#4facfe" Offset="0"/>
+            <GradientStop Color="#00f2fe" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="WarningGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#ffa726" Offset="0"/>
+            <GradientStop Color="#fb8c00" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="SecondaryGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#a8edea" Offset="0"/>
+            <GradientStop Color="#fed6e3" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="TealGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#11998e" Offset="0"/>
+            <GradientStop Color="#38ef7d" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="PurpleGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#8E2DE2" Offset="0"/>
+            <GradientStop Color="#4A00E0" Offset="1"/>
+        </LinearGradientBrush>
+    </Page.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header Section with Stats -->
+        <Grid Grid.Row="0" Background="{ThemeResource LayerFillColorDefaultBrush}" Padding="24,20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Title and Actions -->
+            <Grid Grid.Row="0" Margin="0,0,0,16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Border Background="{StaticResource PrimaryGradient}" 
+                                CornerRadius="12" 
+                                Padding="12" 
+                                Width="56" 
+                                Height="56">
+                            <TextBlock Text="&#xE8BC;" 
+                                      FontFamily="Segoe Fluent Icons" 
+                                      FontSize="28" 
+                                      Foreground="White"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Centro de Reportes Avanzados" 
+                                      FontSize="28" 
+                                      FontWeight="Bold"/>
+                            <TextBlock Text="Sistema de análisis y generación de documentos PDF" 
+                                      FontSize="14" 
+                                      Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Button Style="{StaticResource IconButton}" 
+                            ToolTipService.ToolTip="Refrescar estadísticas"
+                            Click="RefreshStats_Click">
+                        <FontIcon Glyph="&#xE72C;" FontSize="16"/>
+                    </Button>
+                    <Button Style="{StaticResource IconButton}" 
+                            ToolTipService.ToolTip="Historial de reportes"
+                            Click="ShowHistory_Click">
+                        <FontIcon Glyph="&#xE81C;" FontSize="16"/>
+                    </Button>
+                    <Button Style="{StaticResource IconButton}" 
+                            ToolTipService.ToolTip="Ayuda"
+                            Click="ShowHelp_Click">
+                        <FontIcon Glyph="&#xE897;" FontSize="16"/>
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <!-- Quick Stats -->
+            <ScrollViewer Grid.Row="1" 
+                         HorizontalScrollMode="Auto" 
+                         HorizontalScrollBarVisibility="Auto"
+                         VerticalScrollMode="Disabled"
+                         VerticalScrollBarVisibility="Disabled">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <!-- Total Reportes -->
+                    <Border Style="{StaticResource StatCardStyle}" Background="{StaticResource InfoGradient}">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="&#xE8BC;" 
+                                      FontFamily="Segoe Fluent Icons" 
+                                      FontSize="24" 
+                                      Foreground="White" 
+                                      Opacity="0.9"/>
+                            <TextBlock x:Name="txtTotalReportes" 
+                                      Text="0" 
+                                      FontSize="32" 
+                                      FontWeight="Bold" 
+                                      Foreground="White"/>
+                            <TextBlock Text="Reportes Generados" 
+                                      FontSize="12" 
+                                      Foreground="White" 
+                                      Opacity="0.85"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Reportes Hoy -->
+                    <Border Style="{StaticResource StatCardStyle}" Background="{StaticResource SuccessGradient}">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="&#xE787;" 
+                                      FontFamily="Segoe Fluent Icons" 
+                                      FontSize="24" 
+                                      Foreground="White" 
+                                      Opacity="0.9"/>
+                            <TextBlock x:Name="txtReportesHoy" 
+                                      Text="0" 
+                                      FontSize="32" 
+                                      FontWeight="Bold" 
+                                      Foreground="White"/>
+                            <TextBlock Text="Generados Hoy" 
+                                      FontSize="12" 
+                                      Foreground="White" 
+                                      Opacity="0.85"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Reportes Este Mes -->
+                    <Border Style="{StaticResource StatCardStyle}" Background="{StaticResource WarningGradient}">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="&#xE163;" 
+                                      FontFamily="Segoe Fluent Icons" 
+                                      FontSize="24" 
+                                      Foreground="White" 
+                                      Opacity="0.9"/>
+                            <TextBlock x:Name="txtReportesMes" 
+                                      Text="0" 
+                                      FontSize="32" 
+                                      FontWeight="Bold" 
+                                      Foreground="White"/>
+                            <TextBlock Text="Este Mes" 
+                                      FontSize="12" 
+                                      Foreground="White" 
+                                      Opacity="0.85"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Último Reporte -->
+                    <Border Style="{StaticResource StatCardStyle}" Background="{StaticResource PurpleGradient}">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="&#xE823;" 
+                                      FontFamily="Segoe Fluent Icons" 
+                                      FontSize="24" 
+                                      Foreground="White" 
+                                      Opacity="0.9"/>
+                            <TextBlock x:Name="txtUltimoReporte" 
+                                      Text="--:--" 
+                                      FontSize="20" 
+                                      FontWeight="Bold" 
+                                      Foreground="White"/>
+                            <TextBlock Text="Último Reporte" 
+                                      FontSize="12" 
+                                      Foreground="White" 
+                                      Opacity="0.85"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- Main Content with Pivot -->
+        <Pivot Grid.Row="1" Margin="24,16,24,24">
+            <!-- Tab: Reportes Generales -->
+            <PivotItem Header="Reportes Generales">
+                <ScrollViewer VerticalScrollMode="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="16" MaxWidth="1400">
+                        <!-- Filtros Generales -->
+                        <Border Style="{StaticResource ModernCardBorder}">
+                            <Expander Header="Filtros Avanzados" 
+                                     IsExpanded="False"
+                                     HorizontalAlignment="Stretch"
+                                     HorizontalContentAlignment="Stretch">
+                                <Expander.HeaderTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <FontIcon Glyph="&#xE71C;" FontSize="16"/>
+                                            <TextBlock Text="Filtros Avanzados" FontWeight="SemiBold"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </Expander.HeaderTemplate>
+
+                                <Grid Margin="0,16,0,0">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <DatePicker Grid.Row="0" Grid.Column="0"
+                                               x:Name="dpFechaInicio"
+                                               Header="Fecha Inicio"
+                                               CornerRadius="8"/>
+                                    <DatePicker Grid.Row="0" Grid.Column="2"
+                                               x:Name="dpFechaFin"
+                                               Header="Fecha Fin"
+                                               CornerRadius="8"/>
+                                    <ComboBox Grid.Row="0" Grid.Column="4"
+                                             x:Name="cmbFormatoExport"
+                                             Header="Formato de Exportación"
+                                             SelectedIndex="0"
+                                             HorizontalAlignment="Stretch"
+                                             CornerRadius="8">
+                                        <ComboBoxItem Content="PDF (Recomendado)"/>
+                                        <ComboBoxItem Content="Excel"/>
+                                        <ComboBoxItem Content="CSV"/>
+                                    </ComboBox>
+
+                                    <Button Grid.Row="1" Grid.Column="4" 
+                                           Margin="0,16,0,0"
+                                           Content="Limpiar Filtros"
+                                           Click="ClearFilters_Click"
+                                           HorizontalAlignment="Stretch"/>
+                                </Grid>
+                            </Expander>
+                        </Border>
+
+                        <!-- Reportes en Grid -->
+                        <ItemsControl x:Name="ReportesGrid">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <ItemsWrapGrid Orientation="Horizontal" 
+                                                  HorizontalAlignment="Stretch"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+
+                            <!-- Reporte: Análisis por Área -->
+                            <Border Style="{StaticResource ReportCardBorder}" 
+                                   Width="380" 
+                                   Margin="0,0,12,12">
+                                <StackPanel Spacing="12">
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal" Spacing="12">
+                                            <Border Background="{StaticResource PrimaryGradient}" 
+                                                   CornerRadius="8" 
+                                                   Padding="10" 
+                                                   Width="48" 
+                                                   Height="48">
+                                                <TextBlock Text="&#xE9D2;" 
+                                                          FontFamily="Segoe Fluent Icons" 
+                                                          FontSize="24" 
+                                                          Foreground="White"
+                                                          HorizontalAlignment="Center"
+                                                          VerticalAlignment="Center"/>
+                                            </Border>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="Análisis por Área" 
+                                                          FontSize="16" 
+                                                          FontWeight="SemiBold"/>
+                                                <TextBlock Text="Distribución geográfica" 
+                                                          FontSize="12" 
+                                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Grid>
+                                    
+                                    <TextBlock Text="Visualice la distribución de pacientes por área geográfica con estadísticas detalladas de cada región."
+                                              TextWrapping="Wrap"
+                                              FontSize="13"
+                                              Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    
+                                    <Button Click="GenerarReporteArea_Click"
+                                           Style="{StaticResource GradientButton}"
+                                           Background="{StaticResource PrimaryGradient}">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <FontIcon Glyph="&#xE8A5;" FontSize="16"/>
+                                            <TextBlock Text="Generar Reporte"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Reporte: Pacientes Activas -->
+                            <Border Style="{StaticResource ReportCardBorder}" 
+                                   Width="380" 
+                                   Margin="0,0,12,12">
+                                <StackPanel Spacing="12">
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal" Spacing="12">
+                                            <Border Background="{StaticResource SuccessGradient}" 
+                                                   CornerRadius="8" 
+                                                   Padding="10" 
+                                                   Width="48" 
+                                                   Height="48">
+                                                <TextBlock Text="&#xE8FB;" 
+                                                          FontFamily="Segoe Fluent Icons" 
+                                                          FontSize="24" 
+                                                          Foreground="White"
+                                                          HorizontalAlignment="Center"
+                                                          VerticalAlignment="Center"/>
+                                            </Border>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="Pacientes Activas" 
+                                                          FontSize="16" 
+                                                          FontWeight="SemiBold"/>
+                                                <TextBlock Text="Estado actual" 
+                                                          FontSize="12" 
+                                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Grid>
+                                    
+                                    <TextBlock Text="Listado completo de todas las pacientes actualmente en tratamiento o seguimiento activo."
+                                              TextWrapping="Wrap"
+                                              FontSize="13"
+                                              Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    
+                                    <Button Click="GenerarReporteActivas_Click"
+                                           Style="{StaticResource GradientButton}"
+                                           Background="{StaticResource SuccessGradient}">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <FontIcon Glyph="&#xE8A5;" FontSize="16"/>
+                                            <TextBlock Text="Generar Reporte"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Reporte: Registro de Fallecidas -->
+                            <Border Style="{StaticResource ReportCardBorder}" 
+                                   Width="380" 
+                                   Margin="0,0,12,12">
+                                <StackPanel Spacing="12">
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal" Spacing="12">
+                                            <Border Background="{StaticResource DangerGradient}" 
+                                                   CornerRadius="8" 
+                                                   Padding="10" 
+                                                   Width="48" 
+                                                   Height="48">
+                                                <TextBlock Text="&#xE81C;" 
+                                                          FontFamily="Segoe Fluent Icons" 
+                                                          FontSize="24" 
+                                                          Foreground="White"
+                                                          HorizontalAlignment="Center"
+                                                          VerticalAlignment="Center"/>
+                                            </Border>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="Registro de Fallecidas" 
+                                                          FontSize="16" 
+                                                          FontWeight="SemiBold"/>
+                                                <TextBlock Text="Registro histórico" 
+                                                          FontSize="12" 
+                                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Grid>
+                                    
+                                    <TextBlock Text="Registro completo y respetuoso de pacientes fallecidas con información básica."
+                                              TextWrapping="Wrap"
+                                              FontSize="13"
+                                              Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    
+                                    <Button Click="GenerarReporteFallecidas_Click"
+                                           Style="{StaticResource GradientButton}"
+                                           Background="{StaticResource DangerGradient}">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <FontIcon Glyph="&#xE8A5;" FontSize="16"/>
+                                            <TextBlock Text="Generar Reporte"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Reporte: Análisis Detallado -->
+                            <Border Style="{StaticResource ReportCardBorder}" 
+                                   Width="380" 
+                                   Margin="0,0,12,12">
+                                <StackPanel Spacing="12">
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal" Spacing="12">
+                                            <Border Background="{StaticResource SecondaryGradient}" 
+                                                   CornerRadius="8" 
+                                                   Padding="10" 
+                                                   Width="48" 
+                                                   Height="48">
+                                                <TextBlock Text="&#xE8A5;" 
+                                                          FontFamily="Segoe Fluent Icons" 
+                                                          FontSize="24" 
+                                                          Foreground="#333333"
+                                                          HorizontalAlignment="Center"
+                                                          VerticalAlignment="Center"/>
+                                            </Border>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="Análisis Detallado" 
+                                                          FontSize="16" 
+                                                          FontWeight="SemiBold"/>
+                                                <TextBlock Text="Información completa" 
+                                                          FontSize="12" 
+                                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Grid>
+                                    
+                                    <TextBlock Text="Análisis exhaustivo con estadísticas completas, gráficos y datos detallados."
+                                              TextWrapping="Wrap"
+                                              FontSize="13"
+                                              Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    
+                                    <Button Click="GenerarReporteFallecidasDetallado_Click"
+                                           Style="{StaticResource GradientButton}"
+                                           Background="{StaticResource SecondaryGradient}"
+                                           Foreground="#333333">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <FontIcon Glyph="&#xE8A5;" FontSize="16"/>
+                                            <TextBlock Text="Generar Reporte"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+            </PivotItem>
+
+            <!-- Tab: Reportes Personalizados -->
+            <PivotItem Header="Reportes Personalizados">
+                <ScrollViewer VerticalScrollMode="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="20" MaxWidth="1000" HorizontalAlignment="Center">
+                        <!-- Donaciones por Paciente -->
+                        <Border Style="{StaticResource ModernCardBorder}">
+                            <StackPanel Spacing="16">
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <Border Background="{StaticResource InfoGradient}" 
+                                           CornerRadius="8" 
+                                           Padding="10" 
+                                           Width="48" 
+                                           Height="48">
+                                        <TextBlock Text="&#xE8A1;" 
+                                                  FontFamily="Segoe Fluent Icons" 
+                                                  FontSize="24" 
+                                                  Foreground="White"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"/>
+                                    </Border>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Reporte de Donaciones por Paciente" 
+                                                  FontSize="20" 
+                                                  FontWeight="SemiBold"/>
+                                        <TextBlock Text="Historial completo de donaciones individuales" 
+                                                  FontSize="14" 
+                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <InfoBar IsOpen="True" 
+                                        Severity="Informational"
+                                        Message="Ingrese la cédula del paciente para ver su historial completo de donaciones y ayudas recibidas."
+                                        IsClosable="False"/>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBox x:Name="txtIdPaciente" 
+                                            Grid.Column="0"
+                                            Style="{StaticResource ModernTextBox}"
+                                            Header="Cédula del Paciente" 
+                                            PlaceholderText="Ejemplo: 001-1234567-8"
+                                            TextChanged="txtIdPaciente_TextChanged"/>
+                                    
+                                    <Button x:Name="btnReporteDonaciones" 
+                                           Grid.Column="2"
+                                           Click="GenerarReporteDonaciones_Click"
+                                           Style="{StaticResource GradientButton}"
+                                           Background="{StaticResource InfoGradient}"
+                                           VerticalAlignment="Bottom"
+                                           MinWidth="180">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <FontIcon Glyph="&#xE8A5;" FontSize="16"/>
+                                            <TextBlock Text="Generar Reporte"/>
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Análisis Temporal por Área -->
+                        <Border Style="{StaticResource ModernCardBorder}">
+                            <StackPanel Spacing="16">
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <Border Background="{StaticResource WarningGradient}" 
+                                           CornerRadius="8" 
+                                           Padding="10" 
+                                           Width="48" 
+                                           Height="48">
+                                        <TextBlock Text="&#xE787;" 
+                                                  FontFamily="Segoe Fluent Icons" 
+                                                  FontSize="24" 
+                                                  Foreground="White"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"/>
+                                    </Border>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Análisis Temporal por Área" 
+                                                  FontSize="20" 
+                                                  FontWeight="SemiBold"/>
+                                        <TextBlock Text="Estadísticas anuales segmentadas por región" 
+                                                  FontSize="14" 
+                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <InfoBar IsOpen="True" 
+                                        Severity="Informational"
+                                        Message="Seleccione un año para visualizar el análisis completo de todas las áreas geográficas."
+                                        IsClosable="False"/>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="200"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <NumberBox x:Name="nbAnio"
+                                              Grid.Column="0"
+                                              Header="Año de Análisis"
+                                              PlaceholderText="2024"
+                                              Value="2024"
+                                              Minimum="2000"
+                                              Maximum="2100"
+                                              SpinButtonPlacementMode="Inline"
+                                              CornerRadius="8"/>
+
+                                    <ComboBox x:Name="cmbArea"
+                                             Grid.Column="2"
+                                             Header="Área Específica (Opcional)"
+                                             PlaceholderText="Todas las áreas"
+                                             HorizontalAlignment="Stretch"
+                                             CornerRadius="8">
+                                        <ComboBoxItem Content="Todas las áreas"/>
+                                        <ComboBoxItem Content="Zona Norte"/>
+                                        <ComboBoxItem Content="Zona Sur"/>
+                                        <ComboBoxItem Content="Zona Este"/>
+                                        <ComboBoxItem Content="Zona Oeste"/>
+                                    </ComboBox>
+                                    
+                                    <Button x:Name="btnReporteAreaAnio" 
+                                           Grid.Column="4"
+                                           Click="GenerarReporteAreaAnio_Click"
+                                           Style="{StaticResource GradientButton}"
+                                           Background="{StaticResource WarningGradient}"
+                                           VerticalAlignment="Bottom"
+                                           MinWidth="180">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <FontIcon Glyph="&#xE787;" FontSize="16"/>
+                                            <TextBlock Text="Generar Análisis"/>
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </PivotItem>
+
+            <!-- Tab: Historial -->
+            <PivotItem Header="Historial">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Toolbar -->
+                    <Grid Grid.Row="0" Margin="0,0,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBox x:Name="txtSearchHistory"
+                                Grid.Column="0"
+                                PlaceholderText="Buscar en historial..."
+                                CornerRadius="8"
+                                MaxWidth="400"
+                                HorizontalAlignment="Left"/>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                            <Button Style="{StaticResource IconButton}">
+                                <Button.Content>
+                                    <FontIcon Glyph="&#xE74D;"/>
+                                </Button.Content>
+                                <Button.Flyout>
+                                    <Flyout>
+                                        <StackPanel Spacing="12">
+                                            <TextBlock Text="¿Está seguro de eliminar todo el historial?"
+                                                      TextWrapping="Wrap"/>
+                                            <Button Content="Sí, eliminar todo"
+                                                   Background="{StaticResource DangerGradient}"
+                                                   Foreground="White"
+                                                   Click="ConfirmClearHistory_Click"/>
+                                        </StackPanel>
+                                    </Flyout>
+                                </Button.Flyout>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- History List -->
+                    <ListView x:Name="lvHistory" 
+                             Grid.Row="1"
+                             SelectionMode="Single">
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Padding="12" ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <FontIcon Glyph="&#xE8A5;" 
+                                             FontSize="32" 
+                                             Foreground="{StaticResource PrimaryGradient}"/>
+                                    
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Reporte de ejemplo" 
+                                                  FontWeight="SemiBold"/>
+                                        <TextBlock Text="Generado: 01/01/2024 12:00"
+                                                  FontSize="12"
+                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </StackPanel>
+
+                                    <Button Grid.Column="2" 
+                                           Content="Abrir"
+                                           Style="{StaticResource AccentButtonStyle}"
+                                           CornerRadius="8"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+
+                    <!-- Empty State -->
+                    <StackPanel x:Name="EmptyHistoryPanel"
+                               Grid.Row="1"
+                               VerticalAlignment="Center"
+                               HorizontalAlignment="Center"
+                               Spacing="16"
+                               Visibility="Collapsed">
+                        <FontIcon Glyph="&#xE8B7;" 
+                                 FontSize="64" 
+                                 Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                        <TextBlock Text="No hay reportes en el historial"
+                                  FontSize="18"
+                                  FontWeight="SemiBold"
+                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Text="Los reportes generados aparecerán aquí"
+                                  FontSize="14"
+                                  Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                    </StackPanel>
+                </Grid>
+            </PivotItem>
+        </Pivot>
+
+        <!-- Status Bar -->
+        <Border Grid.Row="1" 
+               VerticalAlignment="Bottom"
+               Background="{ThemeResource LayerFillColorDefaultBrush}"
+               BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+               BorderThickness="0,1,0,0"
+               Padding="24,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
+                    <ProgressRing x:Name="progressRing" 
+                                 IsActive="False" 
+                                 Width="20" 
+                                 Height="20"/>
+                    <TextBlock x:Name="txtStatus" 
+                              Text="Sistema listo para generar reportes" 
+                              VerticalAlignment="Center" 
+                              FontSize="13"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="16">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Text="v2.0.0" 
+                                  FontSize="12"
+                                  VerticalAlignment="Center"
+                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <Rectangle Width="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+                    <TextBlock Text="🏥 Rama Femenina Contra el Cáncer" 
+                              FontSize="12"
+                              VerticalAlignment="Center"
+                              Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Page>

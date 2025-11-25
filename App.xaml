@@ -10,7 +10,32 @@
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
                 <!-- Other merged dictionaries here -->
             </ResourceDictionary.MergedDictionaries>
-            <!-- Other app resources here -->
+            
+            <!-- Gradientes Globales -->
+            <LinearGradientBrush x:Key="PrimaryGradient" StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#667eea" Offset="0"/>
+                <GradientStop Color="#764ba2" Offset="1"/>
+            </LinearGradientBrush>
+
+            <LinearGradientBrush x:Key="SuccessGradient" StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#11998e" Offset="0"/>
+                <GradientStop Color="#38ef7d" Offset="1"/>
+            </LinearGradientBrush>
+
+            <LinearGradientBrush x:Key="DangerGradient" StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#eb3349" Offset="0"/>
+                <GradientStop Color="#f45c43" Offset="1"/>
+            </LinearGradientBrush>
+
+            <LinearGradientBrush x:Key="InfoGradient" StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#4facfe" Offset="0"/>
+                <GradientStop Color="#00f2fe" Offset="1"/>
+            </LinearGradientBrush>
+
+            <LinearGradientBrush x:Key="BusinessGradient" StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#f093fb" Offset="0"/>
+                <GradientStop Color="#f5576c" Offset="1"/>
+            </LinearGradientBrush>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

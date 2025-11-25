@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
+using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using RamaFemenina.Models;
@@ -19,6 +20,7 @@ public sealed partial class DonacionesPage : Page, INotifyPropertyChanged
 {
     private readonly RamaFemeninaContext _context;
     private bool _isDonacionSelected;
+    private bool _datosYaCargados = false;
     
     public bool IsDonacionSelected
     {
@@ -48,6 +50,9 @@ public sealed partial class DonacionesPage : Page, INotifyPropertyChanged
     {
         InitializeComponent();
         
+        // Habilitar caché de navegación
+        NavigationCacheMode = NavigationCacheMode.Enabled;
+        
         var app = Application.Current as App;
         _context = app!.Services.GetRequiredService<RamaFemeninaContext>();
         
@@ -55,13 +60,35 @@ public sealed partial class DonacionesPage : Page, INotifyPropertyChanged
         DonacionesFiltradas = new ObservableCollection<Donaciones>();
         Pacientes = new ObservableCollection<Paciente>();
         
-        _ = CargarDatosAsync();
+        // Cargar datos solo si no se han cargado antes
+        if (!_datosYaCargados)
+        {
+            _ = CargarDatosAsync();
+        }
+        
+        // Iniciar animación de entrada
+        this.Loaded += (s, e) => 
+        {
+            try 
+            { 
+                if (this.FindName("FadeInStoryboard") is Storyboard storyboard)
+                {
+                    storyboard.Begin();
+                }
+            } 
+            catch { }
+        };
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        _ = CargarDatosAsync();
+        
+        // Solo recargar si es la primera vez o si se pasa un parámetro para forzar recarga
+        if (!_datosYaCargados || e.Parameter?.ToString() == "Reload")
+        {
+            _ = CargarDatosAsync();
+        }
     }
 
     private async Task CargarDatosAsync()
@@ -85,12 +112,59 @@ public sealed partial class DonacionesPage : Page, INotifyPropertyChanged
             }
 
             ActualizarListaFiltrada();
-            ActualizarResumen();
-            EmptyState.Visibility = DonacionesCollection.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            ActualizarEstadisticas();
+            
+            // Controlar visibilidad
+            var hayDonaciones = DonacionesCollection.Count > 0;
+            if (this.FindName("ListViewScroller") is UIElement listScroller)
+                listScroller.Visibility = hayDonaciones ? Visibility.Visible : Visibility.Collapsed;
+            EmptyState.Visibility = hayDonaciones ? Visibility.Collapsed : Visibility.Visible;
+            
+            // Marcar que los datos ya fueron cargados
+            _datosYaCargados = true;
         }
         catch (Exception ex)
         {
             await ShowInfoDialog("Error", $"Error al cargar datos: {ex.Message}");
+        }
+    }
+
+    private void ActualizarEstadisticas()
+    {
+        try
+        {
+            // Total de donaciones
+            if (this.FindName("txtTotalDonaciones") is TextBlock totalText)
+                totalText.Text = DonacionesCollection.Count.ToString();
+                
+            if (this.FindName("txtContador") is Microsoft.UI.Xaml.Documents.Run contadorRun)
+                contadorRun.Text = DonacionesCollection.Count.ToString();
+            
+            // Calcular totales
+            var totalSolicitado = DonacionesCollection.Sum(d => d.montoSolicitado);
+            var totalDonado = DonacionesCollection.Sum(d => d.total);
+            var diferencia = totalSolicitado - totalDonado;
+            
+            if (this.FindName("txtTotalSolicitado") is TextBlock solicitadoText)
+                solicitadoText.Text = $"RD$ {totalSolicitado:N2}";
+            
+            if (this.FindName("txtTotalDonado") is TextBlock donadoText)
+                donadoText.Text = $"RD$ {totalDonado:N2}";
+            
+            if (this.FindName("txtDiferencia") is TextBlock diferenciaText)
+                diferenciaText.Text = $"RD$ {diferencia:N2}";
+            
+            // Porcentaje completado
+            var porcentaje = totalSolicitado > 0 ? ((double)totalDonado / (double)totalSolicitado) * 100 : 0;
+            if (this.FindName("txtPorcentaje") is TextBlock porcentajeText)
+                porcentajeText.Text = $"{porcentaje:F1}% completado";
+            
+            if (this.FindName("progressSolicitado") is ProgressBar progress)
+                progress.Value = Math.Min(porcentaje, 100);
+        }
+        catch
+        {
+            // Ignorar errores de estadísticas
         }
     }
 
@@ -116,22 +190,10 @@ public sealed partial class DonacionesPage : Page, INotifyPropertyChanged
         }
 
         DonacionesListView.ItemsSource = DonacionesFiltradas;
-        ActualizarResumen();
-    }
-
-    private void ActualizarResumen()
-    {
-        if (DonacionesFiltradas == null || TotalDonacionesText == null) return;
         
-        var totalDonaciones = DonacionesFiltradas.Count;
-        var totalSolicitado = DonacionesFiltradas.Sum(d => d.montoSolicitado);
-        var totalDonado = DonacionesFiltradas.Sum(d => d.total);
-        var diferencia = totalSolicitado - totalDonado;
-
-        TotalDonacionesText.Text = $"Total de donaciones: {totalDonaciones}";
-        TotalSolicitadoText.Text = $"Total solicitado: ${totalSolicitado:N2}";
-        TotalDonadoText.Text = $"Total donado: ${totalDonado:N2}";
-        DiferenciaText.Text = $"Diferencia: ${diferencia:N2}";
+        // Actualizar contador con resultados filtrados
+        if (this.FindName("txtContador") is Microsoft.UI.Xaml.Documents.Run contadorRun)
+            contadorRun.Text = DonacionesFiltradas.Count.ToString();
     }
 
     private void SearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
@@ -298,8 +360,8 @@ public sealed partial class DonacionesPage : Page, INotifyPropertyChanged
 
     private async void BtnActualizar_Click(object sender, RoutedEventArgs e)
     {
+        _datosYaCargados = false;
         await CargarDatosAsync();
-        await ShowInfoDialog("Actualizado", "Los datos han sido actualizados correctamente");
     }
 
     private async Task<Donaciones> MostrarDialogoDonacion(Donaciones donacionExistente)
@@ -513,17 +575,90 @@ public sealed partial class DonacionesPage : Page, INotifyPropertyChanged
     private void DonacionesListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         IsDonacionSelected = DonacionesListView.SelectedItem != null;
+        
+        // Actualizar estado de botones directamente
+        var haySeleccion = IsDonacionSelected;
+        
+        if (this.FindName("btnEditar") is Button editBtn)
+            editBtn.IsEnabled = haySeleccion;
+            
+        if (this.FindName("btnEliminar") is Button delBtn)
+            delBtn.IsEnabled = haySeleccion;
+            
+        if (this.FindName("btnVerPaciente") is Button verBtn)
+            verBtn.IsEnabled = haySeleccion;
     }
 
     private async Task ShowInfoDialog(string title, string message)
     {
+        // Crear contenido mejorado
+        var contentStack = new StackPanel
+        {
+            Spacing = 12,
+            MaxWidth = 450
+        };
+
+        // Icono según el tipo de mensaje
+        string iconGlyph = "\uE946"; // Info por defecto
+        Microsoft.UI.Xaml.Media.Brush iconColor = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorAttentionBrush"];
+
+        if (title.Contains("Error") || title.Contains("?"))
+        {
+            iconGlyph = "\uE783"; // Error
+            iconColor = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorCriticalBrush"];
+        }
+        else if (title.Contains("Éxito") || title.Contains("?") || title.Contains("??"))
+        {
+            iconGlyph = "\uE73E"; // Checkmark
+            iconColor = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorSuccessBrush"];
+        }
+        else if (title.Contains("Información") || title.Contains("??"))
+        {
+            iconGlyph = "\uE946"; // Info
+            iconColor = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorCautionBrush"];
+        }
+
+        var iconBorder = new Border
+        {
+            Width = 56,
+            Height = 56,
+            CornerRadius = new CornerRadius(28),
+            Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 12)
+        };
+
+        var icon = new FontIcon
+        {
+            Glyph = iconGlyph,
+            FontSize = 28,
+            Foreground = iconColor,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        iconBorder.Child = icon;
+
+        var messageText = new TextBlock
+        {
+            Text = message,
+            TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Center,
+            FontSize = 14,
+            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorPrimaryBrush"]
+        };
+
+        contentStack.Children.Add(iconBorder);
+        contentStack.Children.Add(messageText);
+
         var dialog = new ContentDialog
         {
             Title = title,
-            Content = message,
-            CloseButtonText = "Ok",
+            Content = contentStack,
+            CloseButtonText = "Aceptar",
+            DefaultButton = ContentDialogButton.Close,
             XamlRoot = this.XamlRoot
         };
+
         await dialog.ShowAsync();
     }
 }

@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
+using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using RamaFemenina.Models;
@@ -21,6 +22,7 @@ namespace RamaFemenina
     {
         private readonly RamaFemeninaContext _context;
         private bool _isItemSelected;
+        private bool _datosYaCargados = false;
 
         public bool IsItemSelected
         {
@@ -50,16 +52,41 @@ namespace RamaFemenina
             
             InitializeComponent();
             
+            // Habilitar caché de navegación
+            NavigationCacheMode = NavigationCacheMode.Enabled;
+            
             var app = Application.Current as App;
             _context = app!.Services.GetRequiredService<RamaFemeninaContext>();
             
-            _ = CargarDesembolsosAsync();
+            // Cargar datos solo si no se han cargado antes
+            if (!_datosYaCargados)
+            {
+                _ = CargarDesembolsosAsync();
+            }
+            
+            // Iniciar animación de entrada
+            this.Loaded += (s, e) => 
+            {
+                try 
+                { 
+                    if (this.FindName("FadeInStoryboard") is Storyboard storyboard)
+                    {
+                        storyboard.Begin();
+                    }
+                } 
+                catch { }
+            };
         }
 
         protected override void OnNavigatedTo(NavigationEventArgs e)
         {
             base.OnNavigatedTo(e);
-            _ = CargarDesembolsosAsync();
+            
+            // Solo recargar si es la primera vez o si se pasa un parámetro para forzar recarga
+            if (!_datosYaCargados || e.Parameter?.ToString() == "Reload")
+            {
+                _ = CargarDesembolsosAsync();
+            }
         }
 
         private async Task CargarDesembolsosAsync()
@@ -75,11 +102,48 @@ namespace RamaFemenina
                 }
 
                 ActualizarLista();
-                EmptyState.Visibility = DesembolsosCollection.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+                
+                // Controlar visibilidad
+                var hayDesembolsos = DesembolsosCollection.Count > 0;
+                if (this.FindName("ListViewScroller") is UIElement listScroller)
+                    listScroller.Visibility = hayDesembolsos ? Visibility.Visible : Visibility.Collapsed;
+                EmptyState.Visibility = hayDesembolsos ? Visibility.Collapsed : Visibility.Visible;
+                
+                // Marcar que los datos ya fueron cargados
+                _datosYaCargados = true;
             }
             catch (Exception ex)
             {
                 await ShowInfoDialog("Error", $"Error al cargar desembolsos: {ex.Message}");
+            }
+        }
+
+        private void ActualizarEstadisticas(IEnumerable<CajaChica> desembolsos)
+        {
+            try
+            {
+                var listaDesembolsos = desembolsos.ToList();
+                
+                // Total de desembolsos
+                if (this.FindName("txtTotalDesembolsos") is TextBlock totalText)
+                    totalText.Text = listaDesembolsos.Count.ToString();
+                    
+                if (this.FindName("txtContador") is Microsoft.UI.Xaml.Documents.Run contadorRun)
+                    contadorRun.Text = listaDesembolsos.Count.ToString();
+                
+                // Calcular totales
+                var montoTotal = listaDesembolsos.Sum(d => d.Monto);
+                var promedio = listaDesembolsos.Count > 0 ? montoTotal / listaDesembolsos.Count : 0;
+                
+                if (this.FindName("txtMontoTotal") is TextBlock montoText)
+                    montoText.Text = $"RD$ {montoTotal:N2}";
+                
+                if (this.FindName("txtPromedio") is TextBlock promedioText)
+                    promedioText.Text = $"RD$ {promedio:N2}";
+            }
+            catch
+            {
+                // Ignorar errores de estadísticas
             }
         }
 
@@ -102,20 +166,7 @@ namespace RamaFemenina
 
             var lista = desembolsos.ToList();
             DesembolsosListView.ItemsSource = lista;
-            ActualizarResumen(lista);
-        }
-
-        private void ActualizarResumen(List<CajaChica> desembolsos = null)
-        {
-            if (TotalDesembolsosText == null) return;
-            
-            var desembolsosParaResumen = desembolsos ?? DesembolsosCollection.ToList();
-            
-            var totalDesembolsos = desembolsosParaResumen.Count;
-            var montoTotal = desembolsosParaResumen.Sum(d => d.Monto);
-
-            TotalDesembolsosText.Text = $"Total de desembolsos: {totalDesembolsos}";
-            TotalMontoText.Text = $"Monto total: ${montoTotal:N2}";
+            ActualizarEstadisticas(lista);
         }
 
         private void SearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
@@ -124,6 +175,91 @@ namespace RamaFemenina
             {
                 ActualizarLista(sender.Text);
             }
+        }
+
+        private void ListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            IsItemSelected = DesembolsosListView.SelectedItem != null;
+            
+            // Actualizar estado de botones directamente
+            var haySeleccion = IsItemSelected;
+            
+            if (this.FindName("btnEditar") is Button editBtn)
+                editBtn.IsEnabled = haySeleccion;
+                
+            if (this.FindName("btnEliminar") is Button delBtn)
+                delBtn.IsEnabled = haySeleccion;
+                
+            if (this.FindName("btnImprimir") is Button printBtn)
+                printBtn.IsEnabled = haySeleccion;
+        }
+
+        private async Task ShowInfoDialog(string title, string message)
+        {
+            // Crear contenido mejorado
+            var contentStack = new StackPanel
+            {
+                Spacing = 12,
+                MaxWidth = 450
+            };
+
+            // Icono según el tipo de mensaje
+            string iconGlyph = "\uE946"; // Info por defecto
+            Microsoft.UI.Xaml.Media.Brush iconColor = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorAttentionBrush"];
+
+            if (title.Contains("Error") || title.Contains("?"))
+            {
+                iconGlyph = "\uE783"; // Error
+                iconColor = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorCriticalBrush"];
+            }
+            else if (title.Contains("Éxito") || title.Contains("?") || title.Contains("??"))
+            {
+                iconGlyph = "\uE73E"; // Checkmark
+                iconColor = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorSuccessBrush"];
+            }
+
+            var iconBorder = new Border
+            {
+                Width = 56,
+                Height = 56,
+                CornerRadius = new CornerRadius(28),
+                Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 12)
+            };
+
+            var icon = new FontIcon
+            {
+                Glyph = iconGlyph,
+                FontSize = 28,
+                Foreground = iconColor,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            iconBorder.Child = icon;
+
+            var messageText = new TextBlock
+            {
+                Text = message,
+                TextWrapping = TextWrapping.Wrap,
+                TextAlignment = TextAlignment.Center,
+                FontSize = 14,
+                Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorPrimaryBrush"]
+            };
+
+            contentStack.Children.Add(iconBorder);
+            contentStack.Children.Add(messageText);
+
+            var dialog = new ContentDialog
+            {
+                Title = title,
+                Content = contentStack,
+                CloseButtonText = "Aceptar",
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = this.XamlRoot
+            };
+
+            await dialog.ShowAsync();
         }
 
         private async void BtnNuevo_Click(object sender, RoutedEventArgs e)
@@ -474,23 +610,6 @@ namespace RamaFemenina
             }
 
             return null;
-        }
-
-        private void ListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            IsItemSelected = DesembolsosListView.SelectedItem != null;
-        }
-
-        private async Task ShowInfoDialog(string title, string message)
-        {
-            ContentDialog dialog = new ContentDialog
-            {
-                Title = title,
-                Content = message,
-                CloseButtonText = "Ok",
-                XamlRoot = this.XamlRoot
-            };
-            await dialog.ShowAsync();
         }
     }
 }

@@ -83,6 +83,9 @@ namespace RamaFemenina
 
                 System.Diagnostics.Debug.WriteLine($"[APP] Configuración cargada");
 
+                // Registrar IConfiguration como Singleton para que esté disponible en todos los servicios
+                services.AddSingleton<IConfiguration>(configuration);
+
                 // DbContext
                 var connectionString = configuration.GetConnectionString("DefaultConnection");
                 System.Diagnostics.Debug.WriteLine($"[APP] Connection String leída: {connectionString}");
@@ -101,9 +104,16 @@ namespace RamaFemenina
 
                 System.Diagnostics.Debug.WriteLine($"[APP] DbContext configurado");
 
-                // Servicios
+                // Servicios de Negocio
                 services.AddScoped<AuthenticationService>();
-                System.Diagnostics.Debug.WriteLine($"[APP] AuthenticationService registrado");
+                services.AddScoped<FacturaService>();
+                System.Diagnostics.Debug.WriteLine($"[APP] ✅ Servicios de negocio registrados");
+
+                // Servicios de Reportes
+                services.AddScoped<CrystalReportService>();  // Reportes Crystal (configuración automática de BD)
+                services.AddScoped<SimpleReportService>();    // Reportes PDF simples con iText
+                services.AddScoped<ReportManager>();          // Gestor unificado de reportes
+                System.Diagnostics.Debug.WriteLine($"[APP] ✅ Servicios de reportes registrados");
 
                 _serviceProvider = services.BuildServiceProvider();
                 System.Diagnostics.Debug.WriteLine($"[APP] ✅ ServiceProvider construido exitosamente");
