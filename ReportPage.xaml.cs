@@ -88,7 +88,7 @@ namespace RamaFemenina
 
         private async void GenerarReporteActivas_Click(object sender, RoutedEventArgs e)
         {
-            await GenerarReporteConAnimacion(4, "? Generando reporte de pacientes activas...", "Pacientes Activas");
+            await GenerarReporteConAnimacion(4, "?? Generando reporte de pacientes activas...", "Pacientes Activas");
         }
 
         private async void GenerarReporteFallecidasDetallado_Click(object sender, RoutedEventArgs e)
@@ -98,15 +98,22 @@ namespace RamaFemenina
 
         private async void GenerarReporteDonaciones_Click(object sender, RoutedEventArgs e)
         {
-            var idPaciente = GetTextBoxValue("txtIdPaciente");
-            if (string.IsNullOrEmpty(idPaciente))
+            var idPacienteText = GetTextBoxValue("txtIdPaciente");
+            if (string.IsNullOrEmpty(idPacienteText))
             {
-                await ShowErrorDialog("Validación", "Debe ingresar la cédula del paciente.");
+                await ShowErrorDialog("Validación", "Debe ingresar el ID del paciente.");
+                return;
+            }
+
+            // Convertir string a int para el nuevo esquema de base de datos
+            if (!int.TryParse(idPacienteText, out int idPaciente))
+            {
+                await ShowErrorDialog("Validación", "El ID del paciente debe ser un número válido.");
                 return;
             }
 
             var parameters = new ReportParameters { IdPaciente = idPaciente };
-            await GenerarReporteConAnimacion(3, $"?? Generando reporte de donaciones para {idPaciente}...", 
+            await GenerarReporteConAnimacion(3, $"?? Generando reporte de donaciones para paciente {idPaciente}...", 
                                             $"Donaciones - {idPaciente}", parameters);
         }
 
@@ -136,7 +143,7 @@ namespace RamaFemenina
         private void RefreshStats_Click(object sender, RoutedEventArgs e)
         {
             LoadStatistics();
-            ShowMessage("? Estadísticas actualizadas");
+            ShowMessage("?? Estadísticas actualizadas");
         }
 
         private void ShowHistory_Click(object sender, RoutedEventArgs e)
@@ -211,7 +218,7 @@ namespace RamaFemenina
             if (this.FindName("cmbFormatoExport") is ComboBox formato)
                 formato.SelectedIndex = 0;
             
-            ShowMessage("? Filtros limpiados");
+            ShowMessage("?? Filtros limpiados");
         }
 
         private void txtIdPaciente_TextChanged(object sender, TextChangedEventArgs e)
@@ -220,7 +227,7 @@ namespace RamaFemenina
             var text = GetTextBoxValue("txtIdPaciente");
             if (this.FindName("btnReporteDonaciones") is Button btn)
             {
-                btn.IsEnabled = !string.IsNullOrEmpty(text);
+                btn.IsEnabled = !string.IsNullOrEmpty(text) && int.TryParse(text, out _);
             }
         }
 
@@ -238,7 +245,7 @@ namespace RamaFemenina
             if (this.FindName("EmptyHistoryPanel") is StackPanel emptyPanel)
                 emptyPanel.Visibility = Visibility.Visible;
             
-            ShowMessage("? Historial eliminado");
+            ShowMessage("??? Historial eliminado");
         }
 
         #endregion

@@ -5,15 +5,32 @@
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <RootNamespace>RamaFemenina</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Icono del ejecutable (.exe) y barra de tareas -->
+    <ApplicationIcon>Assets\icono2.ico</ApplicationIcon>
     <Platforms>x86;x64;ARM64</Platforms>
     <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
     <PublishProfile>win-$(Platform).pubxml</PublishProfile>
     <UseWinUI>true</UseWinUI>
-    <EnableMsixTooling>true</EnableMsixTooling>
+    <!-- DESACTIVADO TEMPORALMENTE PARA DEBUG SIN DEPLOYMENT -->
+    <EnableMsixTooling>false</EnableMsixTooling>
     <Nullable>enable</Nullable>
+    
+    <!-- CRITICO: Para publicación sin MSIX (unpackaged) -->
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    
+    <!-- Asegurar que resources.pri se genere correctamente -->
+    <AppxPackage>false</AppxPackage>
+    <GenerateAppxPackageOnBuild>false</GenerateAppxPackageOnBuild>
   </PropertyGroup>
+  <!-- Incluir el icono .ico en el proyecto y output -->
   <ItemGroup>
-    <None Remove="CajaChicaPage.xaml" />
+    <Content Include="Assets\icono2.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <!-- Asegurar que el icono se incluya correctamente -->
+  <ItemGroup>
     <None Remove="ChequesPage.xaml" />
     <None Remove="ClientesPage.xaml" />
     <None Remove="CreateUser.xaml" />
@@ -43,7 +60,10 @@
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <Page Update="FacturacionPage.xaml">
+    <None Update="Assets\icono2.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <Page Update="ChequesPage.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Update="ClientesPage.xaml">
@@ -53,9 +73,6 @@
       <Generator>MSBuild:Compile</Generator>
     </None>
     <Page Update="ReportPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Update="CajaChicaPage.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Update="CreateUser.xaml">
@@ -77,6 +94,8 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+    <PackageReference Include="DevExpress.Reporting.Core" Version="25.1.7" />
+    <PackageReference Include="Microsoft.CodeAnalysis" Version="5.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.11" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.11">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -114,11 +133,6 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
-    <Page Update="ChequesPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-  </ItemGroup>
-  <ItemGroup>
     <Page Update="PacientesPage.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -130,6 +144,10 @@
   </ItemGroup>
   <ItemGroup>
     <Service Include="{c0c07587-41a7-46c8-8fbd-3f9c8ebe2ddc}" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Controls\" />
+    <Folder Include="Scripts\" />
   </ItemGroup>
 
   <!--
@@ -143,9 +161,26 @@
 
   <!-- Publish Properties -->
   <PropertyGroup>
-    <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
-    <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
-    <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
-    <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
+    <!-- IMPORTANTE: WinUI 3 NO soporta ReadyToRun correctamente en unpackaged -->
+    <PublishReadyToRun>False</PublishReadyToRun>
+    
+    <!-- IMPORTANTE: WinUI 3 NO es compatible con trimming -->
+    <!-- Trimming causa que la app crashee porque WinUI usa reflexion -->
+    <PublishTrimmed>False</PublishTrimmed>
+    
+    <!-- IMPORTANTE: WinUI 3 NO soporta SingleFile -->
+    <PublishSingleFile>False</PublishSingleFile>
+    
+    <!-- Incluir todos los recursos de WinUI -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
   </PropertyGroup>
+  
+  <!-- Asegurar que los archivos PRI se copien -->
+  <Target Name="CopyPriFiles" AfterTargets="Publish">
+    <ItemGroup>
+      <PriFiles Include="$(OutDir)**\*.pri" />
+    </ItemGroup>
+    <Copy SourceFiles="@(PriFiles)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
+  </Target>
 </Project>

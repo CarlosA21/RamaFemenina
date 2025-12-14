@@ -8,32 +8,41 @@ using System.Threading.Tasks;
 
 namespace RamaFemenina.Models
 {
-    [Table("Cheques")]
+    [Table("cheques")]
     public class Cheques
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [Column("idCheque")]
+        [Column("idcheque")]
         public int idCheque { get; set; }
 
         [Column("monto")]
         public decimal monto { get; set; }
         
         [Required]
-        [Column("Fecha")]
+        [Column("fecha")]
         public DateTime Fecha { get; set; }
 
+        [Required]
         [Column("nombre")]
-        public string nombre { get; set; }
+        [MaxLength(200)]
+        public string nombre { get; set; } = string.Empty;
 
         [Column("concepto")]
-        public string concepto { get; set; }
+        [MaxLength(200)]
+        public string? concepto { get; set; } // Permitir NULL y usar nullable reference type
         
+        [Required]
         [Column("numero")]
-        public string numero { get; set; }
+        [MaxLength(50)]
+        public string numero { get; set; } = string.Empty;
 
         // Propiedad para mostrar la fecha formateada
         [NotMapped]
         public string FechaFormateada => Fecha.ToString("dd/MM/yyyy");
+        
+        // Propiedad para manejar concepto seguro (nunca NULL)
+        [NotMapped]
+        public string ConceptoSeguro => concepto ?? string.Empty;
     }
 }

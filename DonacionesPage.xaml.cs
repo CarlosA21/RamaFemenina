@@ -1,9 +1,9 @@
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -13,14 +13,25 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using RamaFemenina.Models;
 using RamaFemenina.Data;
+using RamaFemenina.Services;
+using RamaFemenina.Extensions;
 
 namespace RamaFemenina;
 
 public sealed partial class DonacionesPage : Page, INotifyPropertyChanged
 {
-    private readonly RamaFemeninaContext _context;
+    private readonly IServiceProvider _serviceProvider;
+    private readonly DataCacheService _cacheService;
     private bool _isDonacionSelected;
-    private bool _datosYaCargados = false;
+    private bool _isLoading;
+    private Timer _searchDelayTimer;
+    private bool _isPageActive = true;
+    
+    // Propiedades de paginación
+    private int _currentPage = 1;
+    private int _pageSize = 50;
+    private int _totalCount = 0;
+    private string _currentSearchTerm = "";
     
     public bool IsDonacionSelected
     {
@@ -35,8 +46,58 @@ public sealed partial class DonacionesPage : Page, INotifyPropertyChanged
         }
     }
 
+    public bool IsLoading
+    {
+        get => _isLoading;
+        set
+        {
+            if (_isLoading != value)
+            {
+                _isLoading = value;
+                OnPropertyChanged();
+                // Spinner/overlay removidos por solicitud; mantener UI responsiva sin overlay
+            }
+        }
+    }
+
+    public int CurrentPage
+    {
+        get => _currentPage;
+        set
+        {
+            if (_currentPage != value)
+            {
+                _currentPage = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(TotalPages));
+                OnPropertyChanged(nameof(HasPreviousPage));
+                OnPropertyChanged(nameof(HasNextPage));
+                OnPropertyChanged(nameof(PageInfo));
+            }
+        }
+    }
+
+    public int TotalCount
+    {
+        get => _totalCount;
+        set
+        {
+            if (_totalCount != value)
+            {
+                _totalCount = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(TotalPages));
+                OnPropertyChanged(nameof(PageInfo));
+            }
+        }
+    }
+
+    public int TotalPages => TotalCount == 0 ? 0 : (int)Math.Ceiling((double)TotalCount / _pageSize);
+    public bool HasPreviousPage => CurrentPage > 1;
+    public bool HasNextPage => CurrentPage < TotalPages;
+    public string PageInfo => $"Página {CurrentPage} de {TotalPages} ({TotalCount} registros)";
+
     public ObservableCollection<Donaciones> DonacionesCollection { get; set; }
-    public ObservableCollection<Donaciones> DonacionesFiltradas { get; set; }
     public ObservableCollection<Paciente> Pacientes { get; set; }
 
     public event PropertyChangedEventHandler PropertyChanged;
@@ -48,349 +109,590 @@ public sealed partial class DonacionesPage : Page, INotifyPropertyChanged
 
     public DonacionesPage()
     {
+        System.Diagnostics.Debug.WriteLine($"[PAGE-CTOR] Constructor DonacionesPage iniciado");
+        
         InitializeComponent();
         
         // Habilitar caché de navegación
         NavigationCacheMode = NavigationCacheMode.Enabled;
+        System.Diagnostics.Debug.WriteLine($"[PAGE-CTOR] NavigationCacheMode establecido");
         
         var app = Application.Current as App;
-        _context = app!.Services.GetRequiredService<RamaFemeninaContext>();
+        _serviceProvider = app!.Services;
+        _cacheService = app.Services.GetRequiredService<DataCacheService>();
+        System.Diagnostics.Debug.WriteLine($"[PAGE-CTOR] ServiceProvider y CacheService obtenidos");
         
         DonacionesCollection = new ObservableCollection<Donaciones>();
-        DonacionesFiltradas = new ObservableCollection<Donaciones>();
         Pacientes = new ObservableCollection<Paciente>();
+        System.Diagnostics.Debug.WriteLine($"[PAGE-CTOR] ObservableCollections creadas");
         
-        // Cargar datos solo si no se han cargado antes
-        if (!_datosYaCargados)
-        {
-            _ = CargarDatosAsync();
-        }
+        // Inicialización de timer para búsqueda con delay
+        _searchDelayTimer = new Timer(PerformSearch, null, Timeout.Infinite, Timeout.Infinite);
+        System.Diagnostics.Debug.WriteLine($"[PAGE-CTOR] Timer de búsqueda creado");
+        
+        // La carga inicial se maneja en OnNavigatedTo
         
         // Iniciar animación de entrada
         this.Loaded += (s, e) => 
         {
             try 
-            { 
+            {
+                System.Diagnostics.Debug.WriteLine($"[PAGE-LOADED] Evento Loaded disparado");
                 if (this.FindName("FadeInStoryboard") is Storyboard storyboard)
                 {
                     storyboard.Begin();
+                    System.Diagnostics.Debug.WriteLine($"[PAGE-LOADED] Storyboard iniciado");
                 }
             } 
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[PAGE-LOADED] Error en animación: {ex.Message}");
+            }
         };
+        
+        System.Diagnostics.Debug.WriteLine($"[PAGE-CTOR] Constructor DonacionesPage completado");
     }
 
-    protected override void OnNavigatedTo(NavigationEventArgs e)
+    protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
+        _isPageActive = true;
         
-        // Solo recargar si es la primera vez o si se pasa un parámetro para forzar recarga
-        if (!_datosYaCargados || e.Parameter?.ToString() == "Reload")
+        // Cargar pacientes primero
+        await LoadPacientesAsync();
+        
+        // Cargar datos solo si es necesario
+        if (e.Parameter?.ToString() == "Reload" || DonacionesCollection.Count == 0)
         {
-            _ = CargarDatosAsync();
+            await LoadPageAsync(1);
         }
     }
 
-    private async Task CargarDatosAsync()
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
+        base.OnNavigatedFrom(e);
+        
+        // Marcar página como inactiva
+        _isPageActive = false;
+    }
+
+    private async Task LoadPageAsync(int page, bool updateStats = true)
+    {
+        if (!_isPageActive) return;
+        
         try
         {
-            // Cargar pacientes
-            Pacientes.Clear();
-            var pacientes = await _context.Pacientes.ToListAsync();
-            foreach (var paciente in pacientes)
-            {
-                Pacientes.Add(paciente);
-            }
+            System.Diagnostics.Debug.WriteLine($"[DONACIONES] LoadPageAsync iniciado - Page: {page}");
+            IsLoading = true;
+            // Ejecutar consultas en paralelo para reducir tiempo total
+            var donacionesTask = _cacheService.GetDonacionesPaginatedAsync(page, _pageSize, _currentSearchTerm);
+            var totalCountTask = _cacheService.GetDonacionesTotalCountAsync(_currentSearchTerm);
+            await Task.WhenAll(donacionesTask, totalCountTask);
+            var donaciones = donacionesTask.Result;
+            var totalCount = totalCountTask.Result;
 
-            // Cargar donaciones
+            System.Diagnostics.Debug.WriteLine($"[DONACIONES] Datos obtenidos - Donaciones: {donaciones?.Count() ?? 0}, Total: {totalCount}");
+
+            if (!_isPageActive) return;
+
             DonacionesCollection.Clear();
-            var donaciones = await _context.Donaciones.OrderByDescending(d => d.Fecha).ToListAsync();
             foreach (var donacion in donaciones)
             {
                 DonacionesCollection.Add(donacion);
             }
 
-            ActualizarListaFiltrada();
-            ActualizarEstadisticas();
+            CurrentPage = page;
+            TotalCount = totalCount;
+
+            System.Diagnostics.Debug.WriteLine($"[DONACIONES] Colección actualizada - Count: {DonacionesCollection.Count}");
+
+            // Actualizar controles de UI
+            if (DonacionesListView != null)
+                DonacionesListView.ItemsSource = DonacionesCollection;
             
-            // Controlar visibilidad
             var hayDonaciones = DonacionesCollection.Count > 0;
             if (this.FindName("ListViewScroller") is UIElement listScroller)
                 listScroller.Visibility = hayDonaciones ? Visibility.Visible : Visibility.Collapsed;
-            EmptyState.Visibility = hayDonaciones ? Visibility.Collapsed : Visibility.Visible;
+            if (EmptyState != null)
+                EmptyState.Visibility = hayDonaciones ? Visibility.Collapsed : Visibility.Visible;
             
-            // Marcar que los datos ya fueron cargados
-            _datosYaCargados = true;
+            UpdatePaginationControls();
+            
+            if (updateStats && _isPageActive)
+            {
+                _ = ActualizarEstadisticasAsync();
+            }
+
+            System.Diagnostics.Debug.WriteLine($"[DONACIONES] LoadPageAsync completado exitosamente");
         }
         catch (Exception ex)
         {
-            await ShowInfoDialog("Error", $"Error al cargar datos: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[DONACIONES] Error al cargar donaciones: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[DONACIONES] StackTrace: {ex.StackTrace}");
+        }
+        finally
+        {
+            IsLoading = false;
         }
     }
 
-    private void ActualizarEstadisticas()
+    private async Task LoadPacientesAsync()
     {
         try
         {
-            // Total de donaciones
-            if (this.FindName("txtTotalDonaciones") is TextBlock totalText)
-                totalText.Text = DonacionesCollection.Count.ToString();
-                
-            if (this.FindName("txtContador") is Microsoft.UI.Xaml.Documents.Run contadorRun)
-                contadorRun.Text = DonacionesCollection.Count.ToString();
+            System.Diagnostics.Debug.WriteLine($"[DONACIONES] LoadPacientesAsync iniciado");
             
-            // Calcular totales
-            var totalSolicitado = DonacionesCollection.Sum(d => d.montoSolicitado);
-            var totalDonado = DonacionesCollection.Sum(d => d.total);
-            var diferencia = totalSolicitado - totalDonado;
+            if (!_isPageActive) return;
             
-            if (this.FindName("txtTotalSolicitado") is TextBlock solicitadoText)
-                solicitadoText.Text = $"RD$ {totalSolicitado:N2}";
+            // Cargar TODOS los pacientes para el dropdown (sin límite de paginación)
+            // Usamos un pageSize muy grande para obtener todos los registros
+            var pacientes = await _cacheService.GetPacientesPaginatedAsync(1, 10000, "", CancellationToken.None);
             
-            if (this.FindName("txtTotalDonado") is TextBlock donadoText)
-                donadoText.Text = $"RD$ {totalDonado:N2}";
+            System.Diagnostics.Debug.WriteLine($"[DONACIONES] Pacientes obtenidos: {pacientes?.Count() ?? 0}");
             
-            if (this.FindName("txtDiferencia") is TextBlock diferenciaText)
-                diferenciaText.Text = $"RD$ {diferencia:N2}";
+            if (!_isPageActive) return;
             
-            // Porcentaje completado
-            var porcentaje = totalSolicitado > 0 ? ((double)totalDonado / (double)totalSolicitado) * 100 : 0;
-            if (this.FindName("txtPorcentaje") is TextBlock porcentajeText)
-                porcentajeText.Text = $"{porcentaje:F1}% completado";
+            Pacientes.Clear();
+            foreach (var paciente in pacientes.OrderBy(p => p.nombre))
+            {
+                Pacientes.Add(paciente);
+            }
             
-            if (this.FindName("progressSolicitado") is ProgressBar progress)
-                progress.Value = Math.Min(porcentaje, 100);
+            System.Diagnostics.Debug.WriteLine($"[DONACIONES] Pacientes cargados en colección: {Pacientes.Count}");
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignorar errores de estadísticas
+            System.Diagnostics.Debug.WriteLine($"[DONACIONES] Error al cargar pacientes: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[DONACIONES] StackTrace: {ex.StackTrace}");
         }
     }
 
-    private void ActualizarListaFiltrada(string searchText = "")
+    private async Task ActualizarEstadisticasAsync()
     {
-        if (DonacionesFiltradas == null || DonacionesCollection == null) return;
-        
-        DonacionesFiltradas.Clear();
-        
-        var donacionesFiltradas = string.IsNullOrWhiteSpace(searchText)
-            ? DonacionesCollection
-            : DonacionesCollection.Where(d =>
-                (d.procedimiento != null && d.procedimiento.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
-                (d.observacion != null && d.observacion.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
-                (d.idPaciente != null && d.idPaciente.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
-                d.valor.ToString().Contains(searchText) ||
-                d.montoSolicitado.ToString().Contains(searchText) ||
-                d.idDonacion.ToString().Contains(searchText));
-
-        foreach (var donacion in donacionesFiltradas)
+        try
         {
-            DonacionesFiltradas.Add(donacion);
-        }
+            if (!_isPageActive) return;
+            
+            // Usar método optimizado del cache service para estadísticas
+            var stats = await _cacheService.GetDonacionesStatsAsync(CancellationToken.None);
 
-        DonacionesListView.ItemsSource = DonacionesFiltradas;
-        
-        // Actualizar contador con resultados filtrados
-        if (this.FindName("txtContador") is Microsoft.UI.Xaml.Documents.Run contadorRun)
-            contadorRun.Text = DonacionesFiltradas.Count.ToString();
+            // Actualizar en UI Thread
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                try
+                {
+                    if (!_isPageActive) return;
+                    
+                    // Total de donaciones
+                    if (this.FindName("txtTotalDonaciones") is TextBlock totalText)
+                        totalText.Text = stats.TotalDonaciones.ToString();
+                        
+                    if (this.FindName("txtContador") is Microsoft.UI.Xaml.Documents.Run contadorRun)
+                        contadorRun.Text = TotalCount.ToString();
+                    
+                    if (this.FindName("txtTotalSolicitado") is TextBlock solicitadoText)
+                        solicitadoText.Text = $"RD$ {stats.TotalSolicitado:N2}";
+                    
+                    if (this.FindName("txtTotalDonado") is TextBlock donadoText)
+                        donadoText.Text = $"RD$ {stats.TotalDonado:N2}";
+                    
+                    if (this.FindName("txtDiferencia") is TextBlock diferenciaText)
+                        diferenciaText.Text = $"RD$ {stats.Diferencia:N2}";
+                    
+                    if (this.FindName("txtPorcentaje") is TextBlock porcentajeText)
+                        porcentajeText.Text = $"{stats.PorcentajeCompletado:F1}% completado";
+                    
+                    if (this.FindName("progressSolicitado") is ProgressBar progress)
+                        progress.Value = Math.Min(Convert.ToDouble(stats.PorcentajeCompletado), 100);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error updating stats UI: {ex.Message}");
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error updating statistics: {ex.Message}");
+        }
+    }
+
+    private void UpdatePaginationControls()
+    {
+        // Actualizar botones de paginación
+        if (this.FindName("btnPreviousPage") is Button prevBtn)
+            prevBtn.IsEnabled = HasPreviousPage;
+            
+        if (this.FindName("btnNextPage") is Button nextBtn)
+            nextBtn.IsEnabled = HasNextPage;
+            
+        if (this.FindName("btnFirstPage") is Button firstBtn)
+            firstBtn.IsEnabled = HasPreviousPage;
+            
+        if (this.FindName("btnLastPage") is Button lastBtn)
+            lastBtn.IsEnabled = HasNextPage;
+
+        // Actualizar información de página
+        if (this.FindName("txtPageInfo") is TextBlock pageInfoText)
+            pageInfoText.Text = PageInfo;
     }
 
     private void SearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
     {
         if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
         {
-            ActualizarListaFiltrada(sender.Text);
+            // Cancelar timer anterior
+            _searchDelayTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+            
+            // Configurar nuevo timer con delay de 500ms
+            _currentSearchTerm = sender.Text?.Trim() ?? "";
+            _searchDelayTimer?.Change(500, Timeout.Infinite);
         }
+    }
+
+    private void PerformSearch(object state)
+    {
+        if (!_isPageActive) return;
+        
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal, async () =>
+        {
+            _cacheService.InvalidateCache("donaciones");
+            await LoadPageAsync(1);
+        });
+    }
+
+    // Eventos de paginación
+    private async void BtnFirstPage_Click(object sender, RoutedEventArgs e)
+    {
+        if (HasPreviousPage)
+            await LoadPageAsync(1);
+    }
+
+    private async void BtnPreviousPage_Click(object sender, RoutedEventArgs e)
+    {
+        if (HasPreviousPage)
+            await LoadPageAsync(CurrentPage - 1);
+    }
+
+    private async void BtnNextPage_Click(object sender, RoutedEventArgs e)
+    {
+        if (HasNextPage)
+            await LoadPageAsync(CurrentPage + 1);
+    }
+
+    private async void BtnLastPage_Click(object sender, RoutedEventArgs e)
+    {
+        if (HasNextPage)
+            await LoadPageAsync(TotalPages);
+    }
+
+    private async void BtnActualizar_Click(object sender, RoutedEventArgs e)
+    {
+        // Limpiar cache y recargar
+        _cacheService.InvalidateCache("donaciones");
+        await LoadPageAsync(CurrentPage);
     }
 
     private async void BtnNuevaDonacion_Click(object sender, RoutedEventArgs e)
     {
-        if (Pacientes.Count == 0)
+        try
         {
-            await ShowInfoDialog("Advertencia", "No hay pacientes registrados. Por favor, registre un paciente primero.");
-            return;
+            // Cargar pacientes bajo demanda para reducir tiempo de carga de la página
+            if (Pacientes.Count == 0)
+            {
+                await LoadPacientesAsync();
+                if (Pacientes.Count == 0)
+                {
+                    await ShowInfoDialog("Advertencia", "No hay pacientes registrados. Por favor, registre un paciente primero.");
+                    return;
+                }
+            }
+
+            var resultado = await MostrarDialogoDonacion(null);
+            if (resultado != null)
+            {
+                try
+                {
+                    using var scope = _serviceProvider.CreateScope();
+                    using var context = scope.ServiceProvider.GetRequiredService<RamaFemeninaContext>();
+                    
+                    context.Donaciones.Add(resultado);
+                    await context.SaveChangesAsync();
+
+                    // Invalidar cache y recargar
+                    _cacheService.InvalidateCache("donaciones");
+                    await LoadPageAsync(CurrentPage, true);
+                    
+                    await ShowInfoDialog("Éxito", $"Donación registrada correctamente.\nID: {resultado.idDonacion}\nTotal: RD$ {resultado.total:N2}");
+                }
+                catch (Exception ex)
+                {
+                    await ShowInfoDialog("Error", $"Error al guardar donación: {ex.Message}");
+                }
+            }
         }
-
-        var resultado = await MostrarDialogoDonacion(null);
-        if (resultado != null)
+        catch (Exception ex)
         {
-            try
-            {
-                _context.Donaciones.Add(resultado);
-                await _context.SaveChangesAsync();
-
-                await CargarDatosAsync();
-                await ShowInfoDialog("Éxito", $"Donación registrada correctamente.\nID: {resultado.idDonacion}\nTotal: ${resultado.total:N2}");
-            }
-            catch (Exception ex)
-            {
-                await ShowInfoDialog("Error", $"Error al guardar donación: {ex.Message}");
-            }
+            System.Diagnostics.Debug.WriteLine($"Error inesperado: {ex.Message}");
+            await ShowInfoDialog("Error", $"Error inesperado: {ex.Message}");
         }
     }
 
     private async void BtnEditarDonacion_Click(object sender, RoutedEventArgs e)
     {
-        var donacionSeleccionada = DonacionesListView.SelectedItem as Donaciones;
-        if (donacionSeleccionada == null)
+        try
         {
-            await ShowInfoDialog("Error", "Debe seleccionar una donación");
-            return;
-        }
-
-        var resultado = await MostrarDialogoDonacion(donacionSeleccionada);
-        if (resultado != null)
-        {
-            try
+            // Obtener la donación del contexto del botón
+            if (sender is Button button && button.Tag != null)
             {
-                var donacion = await _context.Donaciones.FindAsync(donacionSeleccionada.idDonacion);
-                if (donacion != null)
+                var idDonacion = Convert.ToInt32(button.Tag);
+                var donacionSeleccionada = DonacionesCollection.FirstOrDefault(d => d.idDonacion == idDonacion);
+                
+                if (donacionSeleccionada == null)
                 {
-                    donacion.Fecha = resultado.Fecha;
-                    donacion.idPaciente = resultado.idPaciente;
-                    donacion.procedimiento = resultado.procedimiento;
-                    donacion.observacion = resultado.observacion;
-                    donacion.montoSolicitado = resultado.montoSolicitado;
-                    donacion.valor = resultado.valor;
-                    donacion.total = resultado.total;
+                    await ShowInfoDialog("Error", "No se encontró la donación seleccionada");
+                    return;
+                }
 
-                    await _context.SaveChangesAsync();
-                    await CargarDatosAsync();
-                    await ShowInfoDialog("Éxito", "Donación actualizada correctamente");
+                var resultado = await MostrarDialogoDonacion(donacionSeleccionada);
+                if (resultado != null)
+                {
+                    try
+                    {
+                        // Usar una instancia separada del contexto
+                        using var scope = _serviceProvider.CreateScope();
+                        using var context = scope.ServiceProvider.GetRequiredService<RamaFemeninaContext>();
+                        
+                        var donacion = await context.Donaciones.FindAsync(donacionSeleccionada.idDonacion);
+                        if (donacion != null)
+                        {
+                            donacion.Fecha = resultado.Fecha;
+                            donacion.idPaciente = resultado.idPaciente;
+                            donacion.procedimiento = resultado.procedimiento;
+                            donacion.observacion = resultado.observacion;
+                            donacion.montoSolicitado = resultado.montoSolicitado;
+                            donacion.valor = resultado.valor;
+                            donacion.total = resultado.total;
+
+                            // Marcar propiedades como modificadas explícitamente
+                            var entry = context.Entry(donacion);
+                            entry.Property(e => e.Fecha).IsModified = true;
+                            entry.Property(e => e.idPaciente).IsModified = true;
+                            entry.Property(e => e.procedimiento).IsModified = true;
+                            entry.Property(e => e.observacion).IsModified = true;
+                            entry.Property(e => e.montoSolicitado).IsModified = true;
+                            entry.Property(e => e.valor).IsModified = true;
+                            entry.Property(e => e.total).IsModified = true;
+
+                            await context.SaveChangesAsync();
+                            
+                            // Invalidar cache y recargar
+                            _cacheService.InvalidateCache("donaciones");
+                            await LoadPageAsync(CurrentPage);
+                            
+                            await DispatcherQueue.EnqueueAsync(async () =>
+                            {
+                                await ShowInfoDialog("Éxito", "Donación actualizada correctamente");
+                            });
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        await DispatcherQueue.EnqueueAsync(async () =>
+                        {
+                            await ShowInfoDialog("Error", $"Error al actualizar donación: {ex.Message}");
+                        });
+                    }
                 }
             }
-            catch (Exception ex)
-            {
-                await ShowInfoDialog("Error", $"Error al actualizar donación: {ex.Message}");
-            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[BTN-EDITAR] ERROR: {ex.Message}");
+            await ShowInfoDialog("Error", $"Error inesperado: {ex.Message}");
         }
     }
 
     private async void BtnEliminarDonacion_Click(object sender, RoutedEventArgs e)
     {
-        var donacionSeleccionada = DonacionesListView.SelectedItem as Donaciones;
-        if (donacionSeleccionada == null)
+        try
         {
-            await ShowInfoDialog("Error", "Debe seleccionar una donación");
-            return;
-        }
-
-        var confirmDialog = new ContentDialog
-        {
-            Title = "Confirmar Eliminación",
-            Content = $"¿Está seguro que desea eliminar esta donación?\n\n" +
-                      $"ID Donación: {donacionSeleccionada.idDonacion}\n" +
-                      $"Paciente: {donacionSeleccionada.idPaciente}\n" +
-                      $"Procedimiento: {donacionSeleccionada.procedimiento}\n" +
-                      $"Monto: ${donacionSeleccionada.total:N2}\n\n" +
-                      $"Esta acción no se puede deshacer.",
-            PrimaryButtonText = "Eliminar",
-            CloseButtonText = "Cancelar",
-            DefaultButton = ContentDialogButton.Close,
-            XamlRoot = this.XamlRoot
-        };
-
-        var result = await confirmDialog.ShowAsync();
-
-        if (result == ContentDialogResult.Primary)
-        {
-            try
+            // Obtener la donación del contexto del botón
+            if (sender is Button button && button.Tag != null)
             {
-                var donacion = await _context.Donaciones.FindAsync(donacionSeleccionada.idDonacion);
-                if (donacion != null)
+                var idDonacion = Convert.ToInt32(button.Tag);
+                var donacionSeleccionada = DonacionesCollection.FirstOrDefault(d => d.idDonacion == idDonacion);
+                
+                if (donacionSeleccionada == null)
                 {
-                    _context.Donaciones.Remove(donacion);
-                    await _context.SaveChangesAsync();
-                    await CargarDatosAsync();
-                    await ShowInfoDialog("Éxito", "Donación eliminada correctamente");
+                    await ShowInfoDialog("Error", "No se encontró la donación seleccionada");
+                    return;
+                }
+
+                var nombrePaciente = donacionSeleccionada.Paciente?.nombre ?? "Paciente no encontrado";
+                
+                var confirmDialog = new ContentDialog
+                {
+                    Title = "Confirmar Eliminación",
+                    Content = $"¿Está seguro que desea eliminar esta donación?\n\n" +
+                              $"ID Donación: {donacionSeleccionada.idDonacion}\n" +
+                              $"Paciente: {nombrePaciente}\n" +
+                              $"Procedimiento: {donacionSeleccionada.procedimiento}\n" +
+                              $"Monto: RD$ {donacionSeleccionada.total:N2}\n\n" +
+                              $"Esta acción no se puede deshacer.",
+                    PrimaryButtonText = "Eliminar",
+                    CloseButtonText = "Cancelar",
+                    DefaultButton = ContentDialogButton.Close,
+                    XamlRoot = this.XamlRoot
+                };
+
+                var result = await confirmDialog.ShowAsync();
+
+                if (result == ContentDialogResult.Primary)
+                {
+                    try
+                    {
+                        // Usar una instancia separada del contexto
+                        using var scope = _serviceProvider.CreateScope();
+                        using var context = scope.ServiceProvider.GetRequiredService<RamaFemeninaContext>();
+                        
+                        var donacion = await context.Donaciones.FindAsync(donacionSeleccionada.idDonacion);
+                        if (donacion != null)
+                        {
+                            context.Donaciones.Remove(donacion);
+                            await context.SaveChangesAsync();
+                            
+                            // Invalidar cache y recargar
+                            _cacheService.InvalidateCache("donaciones");
+                            await LoadPageAsync(CurrentPage);
+                            
+                            await DispatcherQueue.EnqueueAsync(async () =>
+                            {
+                                await ShowInfoDialog("Éxito", "Donación eliminada correctamente");
+                            });
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        await DispatcherQueue.EnqueueAsync(async () =>
+                        {
+                            await ShowInfoDialog("Error", $"Error al eliminar donación: {ex.Message}");
+                        });
+                    }
                 }
             }
-            catch (Exception ex)
-            {
-                await ShowInfoDialog("Error", $"Error al eliminar donación: {ex.Message}");
-            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[BTN-ELIMINAR] ERROR: {ex.Message}");
+            await ShowInfoDialog("Error", $"Error inesperado: {ex.Message}");
         }
     }
 
     private async void BtnVerPaciente_Click(object sender, RoutedEventArgs e)
     {
-        var donacionSeleccionada = DonacionesListView.SelectedItem as Donaciones;
-        if (donacionSeleccionada == null)
-        {
-            await ShowInfoDialog("Error", "Debe seleccionar una donación");
-            return;
-        }
-
         try
         {
-            var paciente = await _context.Pacientes
-                .FirstOrDefaultAsync(p => p.cedula == donacionSeleccionada.idPaciente);
-
-            if (paciente != null)
+            // Obtener la donación del contexto del botón
+            if (sender is Button button && button.Tag != null)
             {
-                var donacionesPaciente = await _context.Donaciones
-                    .Where(d => d.idPaciente == paciente.cedula)
-                    .ToListAsync();
+                var idDonacion = Convert.ToInt32(button.Tag);
+                var donacionSeleccionada = DonacionesCollection.FirstOrDefault(d => d.idDonacion == idDonacion);
+                
+                if (donacionSeleccionada == null)
+                {
+                    await ShowInfoDialog("Error", "No se encontró la donación seleccionada");
+                    return;
+                }
 
-                var totalDonado = donacionesPaciente.Sum(d => d.total);
-                var totalSolicitado = donacionesPaciente.Sum(d => d.montoSolicitado);
+                try
+                {
+                    // Usar una instancia separada del contexto
+                    using var scope = _serviceProvider.CreateScope();
+                    using var context = scope.ServiceProvider.GetRequiredService<RamaFemeninaContext>();
+                    
+                    var paciente = await context.Pacientes
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(p => p.idpaciente == donacionSeleccionada.idPaciente);
 
-                await ShowInfoDialog("Información del Paciente",
-                    $"Cédula: {paciente.cedula}\n" +
-                    $"Nombre: {paciente.nombre}\n" +
-                    $"Teléfono: {paciente.telefono ?? "N/A"}\n" +
-                    $"Celular: {paciente.celular ?? "N/A"}\n" +
-                    $"Área: {paciente.area ?? "N/A"}\n\n" +
-                    $"DONACIONES:\n" +
-                    $"Total de donaciones: {donacionesPaciente.Count}\n" +
-                    $"Monto solicitado: ${totalSolicitado:N2}\n" +
-                    $"Monto donado: ${totalDonado:N2}");
-            }
-            else
-            {
-                await ShowInfoDialog("Error", "No se encontró el paciente asociado");
+                    if (paciente != null)
+                    {
+                        var donacionesPaciente = await context.Donaciones
+                            .AsNoTracking()
+                            .Where(d => d.idPaciente == paciente.idpaciente)
+                            .ToListAsync();
+
+                        var totalDonado = donacionesPaciente.Sum(d => d.total);
+                        var totalSolicitado = donacionesPaciente.Sum(d => d.montoSolicitado);
+
+                        await DispatcherQueue.EnqueueAsync(async () =>
+                        {
+                            await ShowInfoDialog("Información del Paciente",
+                                $"ID: {paciente.idpaciente}\n" +
+                                $"Cédula: {paciente.cedula}\n" +
+                                $"Nombre: {paciente.nombre}\n" +
+                                $"Teléfono: {paciente.telefono ?? "N/A"}\n" +
+                                $"Celular: {paciente.celular ?? "N/A"}\n" +
+                                $"Estado: {paciente.estado ?? "N/A"}\n" +
+                                $"Área: {paciente.area ?? "N/A"}\n\n" +
+                                $"DONACIONES:\n" +
+                                $"Total de donaciones: {donacionesPaciente.Count}\n" +
+                                $"Monto solicitado: RD$ {totalSolicitado:N2}\n" +
+                                $"Monto donado: RD$ {totalDonado:N2}");
+                        });
+                    }
+                    else
+                    {
+                        await ShowInfoDialog("Error", "No se encontró el paciente asociado");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    await DispatcherQueue.EnqueueAsync(async () =>
+                    {
+                        await ShowInfoDialog("Error", $"Error al cargar información del paciente: {ex.Message}");
+                    });
+                }
             }
         }
         catch (Exception ex)
         {
-            await ShowInfoDialog("Error", $"Error al cargar información del paciente: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[BTN-VER-PACIENTE] ERROR: {ex.Message}");
+            await ShowInfoDialog("Error", $"Error inesperado: {ex.Message}");
         }
-    }
-
-    private async void BtnActualizar_Click(object sender, RoutedEventArgs e)
-    {
-        _datosYaCargados = false;
-        await CargarDatosAsync();
     }
 
     private async Task<Donaciones> MostrarDialogoDonacion(Donaciones donacionExistente)
     {
+        System.Diagnostics.Debug.WriteLine($"[DIALOG] MostrarDialogoDonacion iniciado - Es edición: {donacionExistente != null}");
+        
         bool esEdicion = donacionExistente != null;
+
+        // Lazy load de pacientes si aún no están cargados
+        if (Pacientes.Count == 0)
+        {
+            await LoadPacientesAsync();
+        }
 
         var pacienteCombo = new ComboBox
         {
             Header = "Paciente *",
             PlaceholderText = "Seleccione un paciente",
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            ItemsSource = Pacientes
+            DisplayMemberPath = "nombre",
+            SelectedValuePath = "idpaciente"
         };
 
-        // Crear el DisplayMemberPath manualmente porque necesitamos mostrar cédula y nombre
-        pacienteCombo.ItemTemplate = new DataTemplate();
-        var factory = Microsoft.UI.Xaml.Markup.XamlReader.Load(
-            @"<DataTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'>
-                <StackPanel Orientation='Horizontal' Spacing='8'>
-                    <TextBlock Text='{Binding cedula}' FontWeight='SemiBold'/>
-                    <TextBlock Text='-'/>
-                    <TextBlock Text='{Binding nombre}'/>
-                </StackPanel>
-            </DataTemplate>") as DataTemplate;
-        pacienteCombo.ItemTemplate = factory;
+        System.Diagnostics.Debug.WriteLine($"[DIALOG] ComboBox creado. Pacientes disponibles: {Pacientes.Count}");
+
+        // Usar la colección de pacientes directamente
+        pacienteCombo.ItemsSource = Pacientes;
 
         if (esEdicion)
         {
-            pacienteCombo.SelectedItem = Pacientes.FirstOrDefault(p => p.cedula == donacionExistente.idPaciente);
+            System.Diagnostics.Debug.WriteLine($"[DIALOG] Buscando paciente con ID: {donacionExistente.idPaciente}");
+            pacienteCombo.SelectedValue = donacionExistente.idPaciente;
+            System.Diagnostics.Debug.WriteLine($"[DIALOG] Paciente seleccionado: {pacienteCombo.SelectedValue != null}");
         }
 
         var fechaPicker = new CalendarDatePicker
@@ -456,11 +758,14 @@ public sealed partial class DonacionesPage : Page, INotifyPropertyChanged
 
         void ActualizarTotal()
         {
-            totalBox.Value = valorDonacionBox.Value;
+            // Proteger contra NaN
+            var valor = double.IsNaN(valorDonacionBox.Value) ? 0 : Math.Max(0, valorDonacionBox.Value);
+            var solicitado = double.IsNaN(montoSolicitadoBox.Value) ? 0 : Math.Max(0, montoSolicitadoBox.Value);
+            totalBox.Value = valor;
             
-            if (montoSolicitadoBox.Value > 0)
+            if (solicitado > 0)
             {
-                var porcentaje = (valorDonacionBox.Value / montoSolicitadoBox.Value) * 100;
+                var porcentaje = (valor / solicitado) * 100;
                 porcentajeText.Text = $"Porcentaje completado: {porcentaje:F1}%";
                 progressBar.Value = Math.Min(porcentaje, 100);
                 
@@ -527,138 +832,244 @@ public sealed partial class DonacionesPage : Page, INotifyPropertyChanged
             XamlRoot = this.XamlRoot
         };
 
+        System.Diagnostics.Debug.WriteLine($"[DIALOG] Mostrando diálogo...");
         var result = await dialog.ShowAsync();
-
+        System.Diagnostics.Debug.WriteLine($"[DIALOG] Resultado del diálogo: {result}");
+        
         if (result == ContentDialogResult.Primary)
         {
-            if (pacienteCombo.SelectedItem == null)
+            if (pacienteCombo.SelectedValue == null)
             {
+                System.Diagnostics.Debug.WriteLine($"[DIALOG] ERROR: No se seleccionó un paciente");
                 await ShowInfoDialog("Error", "Debe seleccionar un paciente");
                 return null;
             }
 
             if (!fechaPicker.Date.HasValue)
             {
+                System.Diagnostics.Debug.WriteLine($"[DIALOG] ERROR: No se seleccionó una fecha");
                 await ShowInfoDialog("Error", "Debe seleccionar una fecha");
                 return null;
             }
 
             if (string.IsNullOrWhiteSpace(procedimientoBox.Text))
             {
+                System.Diagnostics.Debug.WriteLine($"[DIALOG] ERROR: Procedimiento vacío");
                 await ShowInfoDialog("Error", "El procedimiento es obligatorio");
                 return null;
             }
 
-            if (montoSolicitadoBox.Value <= 0 || double.IsNaN(montoSolicitadoBox.Value))
+            if (double.IsNaN(montoSolicitadoBox.Value) || montoSolicitadoBox.Value <= 0)
             {
+                System.Diagnostics.Debug.WriteLine($"[DIALOG] ERROR: Monto solicitado inválido");
                 await ShowInfoDialog("Error", "Debe ingresar un monto solicitado válido");
                 return null;
             }
 
-            var pacienteSeleccionado = pacienteCombo.SelectedItem as Paciente;
+            // Usar SelectedValue para mayor robustez
+            var pacienteId = (int)pacienteCombo.SelectedValue;
+            var pacienteSeleccionado = Pacientes.FirstOrDefault(p => p.idpaciente == pacienteId);
+            if (pacienteSeleccionado == null)
+            {
+                await ShowInfoDialog("Error", "Paciente seleccionado no válido");
+                return null;
+            }
+            System.Diagnostics.Debug.WriteLine($"[DIALOG] Paciente seleccionado ID: {pacienteSeleccionado.idpaciente}, Nombre: {pacienteSeleccionado.nombre}");
 
-            return new Donaciones
+            var nuevaDonacion = new Donaciones
             {
                 Fecha = fechaPicker.Date.Value.DateTime,
-                idPaciente = pacienteSeleccionado.cedula,
+                idPaciente = pacienteSeleccionado.idpaciente,
                 procedimiento = procedimientoBox.Text.Trim(),
-                montoSolicitado = (decimal)montoSolicitadoBox.Value,
-                valor = (decimal)valorDonacionBox.Value,
-                total = (decimal)totalBox.Value,
+                montoSolicitado = (decimal)(double.IsNaN(montoSolicitadoBox.Value) ? 0 : montoSolicitadoBox.Value),
+                valor = (decimal)(double.IsNaN(valorDonacionBox.Value) ? 0 : valorDonacionBox.Value),
+                total = (decimal)(double.IsNaN(totalBox.Value) ? 0 : totalBox.Value),
                 observacion = observacionBox.Text.Trim()
             };
+
+            System.Diagnostics.Debug.WriteLine($"[DIALOG] Donación creada exitosamente");
+            return nuevaDonacion;
         }
 
+        System.Diagnostics.Debug.WriteLine($"[DIALOG] Diálogo cancelado");
         return null;
     }
 
     private void DonacionesListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        IsDonacionSelected = DonacionesListView.SelectedItem != null;
-        
-        // Actualizar estado de botones directamente
-        var haySeleccion = IsDonacionSelected;
-        
-        if (this.FindName("btnEditar") is Button editBtn)
-            editBtn.IsEnabled = haySeleccion;
-            
-        if (this.FindName("btnEliminar") is Button delBtn)
-            delBtn.IsEnabled = haySeleccion;
-            
-        if (this.FindName("btnVerPaciente") is Button verBtn)
-            verBtn.IsEnabled = haySeleccion;
+        IsDonacionSelected = DonacionesListView?.SelectedItem != null;
+    }
+
+    // Missing pagination event handlers for the bottom pagination section
+    private async void btnPrimeraPagina_Click(object sender, RoutedEventArgs e)
+    {
+        if (HasPreviousPage)
+            await LoadPageAsync(1);
+    }
+
+    private async void btnPaginaAnterior_Click(object sender, RoutedEventArgs e)
+    {
+        if (HasPreviousPage)
+            await LoadPageAsync(CurrentPage - 1);
+    }
+
+    private async void btnPaginaSiguiente_Click(object sender, RoutedEventArgs e)
+    {
+        if (HasNextPage)
+            await LoadPageAsync(CurrentPage + 1);
+    }
+
+    private async void btnUltimaPagina_Click(object sender, RoutedEventArgs e)
+    {
+        if (HasNextPage)
+            await LoadPageAsync(TotalPages);
+    }
+
+    private async void comboResultadosPorPagina_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ComboBox combo && combo.SelectedItem is ComboBoxItem item)
+        {
+            if (int.TryParse(item.Content?.ToString(), out int newPageSize))
+            {
+                _pageSize = newPageSize;
+                
+                // Invalidar cache y recargar primera página
+                _cacheService.InvalidateCache("donaciones");
+                await LoadPageAsync(1);
+            }
+        }
     }
 
     private async Task ShowInfoDialog(string title, string message)
     {
-        // Crear contenido mejorado
-        var contentStack = new StackPanel
+        // Asegurar que estamos en el UI thread
+        if (!DispatcherQueue.HasThreadAccess)
         {
-            Spacing = 12,
-            MaxWidth = 450
-        };
-
-        // Icono según el tipo de mensaje
-        string iconGlyph = "\uE946"; // Info por defecto
-        Microsoft.UI.Xaml.Media.Brush iconColor = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorAttentionBrush"];
-
-        if (title.Contains("Error") || title.Contains("?"))
-        {
-            iconGlyph = "\uE783"; // Error
-            iconColor = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorCriticalBrush"];
-        }
-        else if (title.Contains("Éxito") || title.Contains("?") || title.Contains("??"))
-        {
-            iconGlyph = "\uE73E"; // Checkmark
-            iconColor = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorSuccessBrush"];
-        }
-        else if (title.Contains("Información") || title.Contains("??"))
-        {
-            iconGlyph = "\uE946"; // Info
-            iconColor = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorCautionBrush"];
+            await DispatcherQueue.EnqueueAsync(async () =>
+            {
+                await ShowInfoDialogInternal(title, message);
+            });
+            return;
         }
 
-        var iconBorder = new Border
+        await ShowInfoDialogInternal(title, message);
+    }
+
+    private async Task ShowInfoDialogInternal(string title, string message)
+    {
+        try
         {
-            Width = 56,
-            Height = 56,
-            CornerRadius = new CornerRadius(28),
-            Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, 0, 0, 12)
-        };
+            // Verificar que XamlRoot esté disponible
+            if (this.XamlRoot == null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DIALOG] ERROR: XamlRoot es null");
+                return;
+            }
 
-        var icon = new FontIcon
+            // Crear contenido simple
+            var contentStack = new StackPanel
+            {
+                Spacing = 12,
+                MaxWidth = 450
+            };
+
+            // Icono según el tipo de mensaje
+            string iconGlyph = "\uE946"; // Info por defecto
+            Windows.UI.Color iconColor;
+
+            if (title.Contains("Error"))
+            {
+                iconGlyph = "\uE783"; // Error
+                iconColor = Windows.UI.Color.FromArgb(255, 196, 43, 28); // Rojo
+            }
+            else if (title.Contains("Éxito"))
+            {
+                iconGlyph = "\uE73E"; // Checkmark
+                iconColor = Windows.UI.Color.FromArgb(255, 16, 124, 16); // Verde
+            }
+            else if (title.Contains("Información") || title.Contains("Advertencia"))
+            {
+                iconGlyph = "\uE946"; // Info
+                iconColor = Windows.UI.Color.FromArgb(255, 255, 185, 0); // Amarillo
+            }
+            else
+            {
+                iconColor = Windows.UI.Color.FromArgb(255, 0, 120, 212); // Azul
+            }
+
+            var iconBorder = new Border
+            {
+                Width = 56,
+                Height = 56,
+                CornerRadius = new CornerRadius(28),
+                Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                    Windows.UI.Color.FromArgb(20, iconColor.R, iconColor.G, iconColor.B)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 12)
+            };
+
+            var icon = new FontIcon
+            {
+                Glyph = iconGlyph,
+                FontSize = 28,
+                Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(iconColor),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            iconBorder.Child = icon;
+
+            var messageText = new TextBlock
+            {
+                Text = message,
+                TextWrapping = TextWrapping.Wrap,
+                TextAlignment = TextAlignment.Center,
+                FontSize = 14
+            };
+
+            contentStack.Children.Add(iconBorder);
+            contentStack.Children.Add(messageText);
+
+            var dialog = new ContentDialog
+            {
+                Title = title,
+                Content = contentStack,
+                CloseButtonText = "Aceptar",
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = this.XamlRoot
+            };
+
+            await dialog.ShowAsync();
+        }
+        catch (Exception ex)
         {
-            Glyph = iconGlyph,
-            FontSize = 28,
-            Foreground = iconColor,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        iconBorder.Child = icon;
+            System.Diagnostics.Debug.WriteLine($"[DIALOG] ERROR en ShowInfoDialogInternal: {ex.GetType().Name} - {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[DIALOG] Stack trace: {ex.StackTrace}");
+        }
+    }
 
-        var messageText = new TextBlock
+    // Implementar IDisposable para limpiar recursos
+    ~DonacionesPage()
+    {
+        Dispose();
+    }
+
+    private bool _disposed = false;
+
+    public void Dispose()
+    {
+        if (!_disposed)
         {
-            Text = message,
-            TextWrapping = TextWrapping.Wrap,
-            TextAlignment = TextAlignment.Center,
-            FontSize = 14,
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorPrimaryBrush"]
-        };
-
-        contentStack.Children.Add(iconBorder);
-        contentStack.Children.Add(messageText);
-
-        var dialog = new ContentDialog
-        {
-            Title = title,
-            Content = contentStack,
-            CloseButtonText = "Aceptar",
-            DefaultButton = ContentDialogButton.Close,
-            XamlRoot = this.XamlRoot
-        };
-
-        await dialog.ShowAsync();
+            try
+            {
+                _searchDelayTimer?.Dispose();
+            }
+            catch
+            {
+                // Ignorar errores durante la limpieza
+            }
+            
+            _disposed = true;
+            GC.SuppressFinalize(this);
+        }
     }
 }

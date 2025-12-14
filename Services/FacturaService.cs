@@ -21,6 +21,50 @@ namespace RamaFemenina.Services
             return await Task.FromResult(GenerarPdfFactura(parametros));
         }
 
+        // Nuevo método para generar factura desde datos de recibo
+        public async Task<string> GenerarFacturaPdfAsync(FacturaData datos)
+        {
+            // Convertir FacturaData a FacturaParametros
+            var parametros = new FacturaParametros
+            {
+                Fecha = datos.FechaFactura,
+                NCF = datos.NCF,
+                ValidaHasta = datos.ValidaHasta,
+                RncCliente = datos.RncCliente,
+                NombreCliente = datos.NombreCliente,
+                TelefonoCliente = datos.TelefonoCliente,
+                DireccionCliente = datos.DireccionCliente,
+                Items = new List<FacturaItem>
+                {
+                    new FacturaItem
+                    {
+                        Cantidad = 1,
+                        Descripcion = datos.ConceptoServicio,
+                        Precio = datos.MontoServicio,
+                        Itbis = 0 // Por defecto, servicios médicos están exentos
+                    }
+                },
+                TotalExento = datos.MontoServicio,
+                TotalGravado = 0,
+                TotalItbis = 0,
+                TotalNeto = datos.MontoServicio,
+                EsEfectivo = true // Por defecto
+            };
+
+            // Generar el PDF
+            var pdfBytes = GenerarPdfFactura(parametros);
+
+            // Crear nombre de archivo único
+            var nombreArchivo = $"Factura_NCF_{datos.NCF}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+            var tempPath = Path.GetTempPath();
+            var rutaArchivo = Path.Combine(tempPath, nombreArchivo);
+
+            // Guardar el archivo
+            await File.WriteAllBytesAsync(rutaArchivo, pdfBytes);
+
+            return rutaArchivo;
+        }
+
         private byte[] GenerarPdfFactura(FacturaParametros parametros)
         {
             using var memoryStream = new MemoryStream();
@@ -62,7 +106,7 @@ namespace RamaFemenina.Services
             leftCell.SetPadding(10);
 
             // Logo placeholder (símbolo médico)
-            var logoText = new Paragraph("?")
+            var logoText = new Paragraph("??")
                 .SetFontSize(48)
                 .SetTextAlignment(TextAlignment.CENTER)
                 .SetMarginBottom(5);
@@ -96,14 +140,14 @@ namespace RamaFemenina.Services
                 .SetMarginBottom(2);
             leftCell.Add(direccion);
 
-            var telefono = new Paragraph("Tels.: 809-582-9939 / 809-226-1178 *Fax: 809-582-9939")
+            var telefono = new Paragraph("Tels.: 809-582-3939 / 809-226-1178 *Fax: 809-582-3939")
                 .SetFontSize(9)
                 .SetTextAlignment(TextAlignment.CENTER)
                 .SetMarginBottom(5);
             leftCell.Add(telefono);
 
             // RNC
-            var rncBox = new Paragraph("RNC: 4-30-10592-5")
+            var rncBox = new Paragraph("RNC: 4-30-10692-5")
                 .SetFontSize(10)
                 .SetBold()
                 .SetTextAlignment(TextAlignment.LEFT)
@@ -406,6 +450,32 @@ namespace RamaFemenina.Services
         public decimal Subtotal => Cantidad * Precio;
         public decimal Itbis { get; set; }
         public decimal Total => Subtotal + Itbis;
+    }
+
+    // Nueva clase para datos de factura desde recibo
+    public class FacturaData
+    {
+        // Datos del cliente
+        public string RncCliente { get; set; } = string.Empty;
+        public string TelefonoCliente { get; set; } = string.Empty;
+        public string NombreCliente { get; set; } = string.Empty;
+        public string DireccionCliente { get; set; } = string.Empty;
+        
+        // Datos fiscales
+        public string NCF { get; set; } = string.Empty;
+        public DateTime ValidaHasta { get; set; } = DateTime.Now.AddMonths(1);
+        
+        // Datos del servicio/recibo
+        public string NumeroFactura { get; set; } = string.Empty;
+        public DateTime FechaFactura { get; set; } = DateTime.Now;
+        public string ConceptoServicio { get; set; } = string.Empty;
+        public decimal MontoServicio { get; set; }
+        
+        // Datos de la organización
+        public string NombreEmisor { get; set; } = string.Empty;
+        public string RncEmisor { get; set; } = string.Empty;
+        public string DireccionEmisor { get; set; } = string.Empty;
+        public string TelefonoEmisor { get; set; } = string.Empty;
     }
 
     #endregion

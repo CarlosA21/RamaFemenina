@@ -6,61 +6,74 @@ using Microsoft.UI;
 
 namespace RamaFemenina.Models
 {
-    [Table("Recibo")]
+    [Table("inrecibo")]
     public class Recibo
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [Column("NumeroRecibo")]
+        [Column("idrecibo")]
+        public int IdRecibo { get; set; }
+        
+        [Column("nrecibo")]
+        [DatabaseGenerated(DatabaseGeneratedOption.Computed)] // Generado por la BD (sequence + default)
         public int NumeroRecibo { get; set; }
         
         [Required]
-        [Column("Fecha")]
+        [Column("fecha")]
         public DateTime Fecha { get; set; }
         
-        // Tipo de recibo: "Ingreso" o "Egreso"
         [Required]
-        [Column("TipoRecibo")]
-        public string TipoRecibo { get; set; } = "Ingreso";
-        
-        [Required]
-        [Column("RecibimosDe")]
+        [Column("nombre")]
+        [MaxLength(200)]
         public string RecibimosDe { get; set; } = string.Empty;
         
-        // Nuevo campo para Recibos de Egreso (Cédula en vez de Cheque No.)
-        [Column("Cedula")]
+        [Column("cheque")]
+        [MaxLength(50)]
         public string? Cedula { get; set; }
         
-        [Column("Monto")]
+        [Column("monto")]
         public decimal Monto { get; set; }
         
-        [Column("MontoEnLetras")]
+        // Este campo no existe en tu tabla, lo calcularemos
+        [NotMapped]
         public string? MontoEnLetras { get; set; }
         
-        [Column("Concepto")]
+        [Column("concepto")]
+        [MaxLength(200)]
         public string? Concepto { get; set; }
         
+        // Tipo de recibo - como no hay columna específica en la BD, 
+        // lo manejamos como NotMapped con valor por defecto "Ingreso"
+        [NotMapped]
+        public string TipoRecibo { get; set; } = "Ingreso";
+        
         // Tipo de pago
-        [Column("EsEfectivo")]
+        [Column("efect")]
         public bool EsEfectivo { get; set; }
         
-        [Column("EsTransferencia")]
+        [Column("trans")]
         public bool EsTransferencia { get; set; }
         
-        [Column("EsCheque")]
+        [Column("cheq")]
         public bool EsCheque { get; set; }
         
         // Datos de transferencia
-        [Column("NumeroFacturaNCF")]
+        [Column("factura")]
+        [MaxLength(100)]
         public string? NumeroFacturaNCF { get; set; }
         
-        // Datos de cheque
-        [Column("NumeroCheque")]
-        public string? NumeroCheque { get; set; }
+        // Datos de cheque (reutilizamos el campo cheque)
+        [NotMapped]
+        public string? NumeroCheque 
+        { 
+            get => Cedula;
+            set => Cedula = value;
+        }
         
-        [Column("Banco")]
+        [Column("banco")]
+        [MaxLength(100)]
         public string? Banco { get; set; }
-
+        
         // Propiedades computadas para la UI
         [NotMapped]
         public string FechaFormateada => Fecha.ToString("dd/MM/yyyy");
@@ -96,8 +109,8 @@ namespace RamaFemenina.Models
             {
                 if (EsTransferencia && !string.IsNullOrEmpty(NumeroFacturaNCF))
                     return $"NCF: {NumeroFacturaNCF}";
-                if (EsCheque && !string.IsNullOrEmpty(NumeroCheque))
-                    return $"Cheque: {NumeroCheque} - {Banco ?? ""}";
+                if (EsCheque && !string.IsNullOrEmpty(Cedula))
+                    return $"Cheque: {Cedula} - {Banco ?? ""}";
                 return string.Empty;
             }
         }
@@ -118,7 +131,7 @@ namespace RamaFemenina.Models
         {
             get
             {
-                return TipoRecibo == "Ingreso" ? "?" : "?";
+                return TipoRecibo == "Ingreso" ? "??" : "??";
             }
         }
     }

@@ -9,6 +9,10 @@ namespace RamaFemenina.Models
     public class Paciente
     {
         [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [Column("idpaciente")]
+        public int idpaciente { get; set; }
+
         [Required]
         [Column("cedula")]
         [MaxLength(50)]
@@ -26,6 +30,11 @@ namespace RamaFemenina.Models
         [Column("celular")]
         [MaxLength(50)]
         public string celular { get; set; }
+
+        [Required]
+        [Column("estado")]
+        [MaxLength(50)]
+        public string estado { get; set; }
 
         [Required]
         [Column("nrecord")]

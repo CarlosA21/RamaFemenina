@@ -8,25 +8,31 @@ using System.Threading.Tasks;
 
 namespace RamaFemenina.Models
 {
-    [Table("Clientes")]
+    [Table("clientes")]
     public class Clientes
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [Column("idCliente")]
+        [Column("idcliente")]
         public int idCliente { get; set; }
         
         [Required]
         [Column("nombre")]
+        [MaxLength(150)]
         public string nombre { get; set; }
 
+        [Required]
         [Column("telefono")]
+        [MaxLength(50)]
         public string telefono { get; set; }
         
+        [Required]
         [Column("direccion")]
+        [MaxLength(200)]
         public string direccion { get; set; }
         
         [Column("rnc")]
+        [MaxLength(50)]
         public string rnc { get; set; }
     }
 }

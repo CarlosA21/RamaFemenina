@@ -41,541 +41,616 @@
 
         <Style x:Key="StatCard" TargetType="Border">
             <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
-            <Setter Property="CornerRadius" Value="16"/>
-            <Setter Property="Padding" Value="24,20"/>
-            <Setter Property="MinHeight" Value="140"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="20"/>
+            <Setter Property="MinHeight" Value="120"/>
         </Style>
 
         <Style x:Key="ModernButton" TargetType="Button">
-            <Setter Property="Height" Value="48"/>
-            <Setter Property="MinWidth" Value="140"/>
+            <Setter Property="Height" Value="44"/>
+            <Setter Property="MinWidth" Value="120"/>
             <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Margin" Value="4"/>
         </Style>
 
         <Style x:Key="IconButton" TargetType="Button">
-            <Setter Property="Width" Value="48"/>
-            <Setter Property="Height" Value="48"/>
-            <Setter Property="CornerRadius" Value="24"/>
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="CornerRadius" Value="20"/>
             <Setter Property="Padding" Value="0"/>
         </Style>
+
+        <!-- Gradientes -->
+        <LinearGradientBrush x:Key="DonacionesGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#11998e" Offset="0"/>
+            <GradientStop Color="#38ef7d" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="PrimaryGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#4facfe" Offset="0"/>
+            <GradientStop Color="#00f2fe" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="SuccessGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#11998e" Offset="0"/>
+            <GradientStop Color="#38ef7d" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="DangerGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#eb3349" Offset="0"/>
+            <GradientStop Color="#f45c43" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="WarningGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#f2994a" Offset="0"/>
+            <GradientStop Color="#f2c94c" Offset="1"/>
+        </LinearGradientBrush>
     </Page.Resources>
 
-    <Grid x:Name="MainContent" Margin="0">
+    <Grid x:Name="MainContent">
         <Grid.RenderTransform>
             <TranslateTransform Y="0"/>
         </Grid.RenderTransform>
 
-        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="40,20,40,20">
-            <Grid MaxWidth="1600" HorizontalAlignment="Center">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
+        <Grid Padding="24,16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-                <!-- Header Premium -->
-                <Border Grid.Row="0" 
-                       CornerRadius="16" 
-                       Padding="32,28"
-                       Margin="0,0,0,24"
-                       Background="{StaticResource SuccessGradient}">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <StackPanel Grid.Column="0" Spacing="8">
-                            <StackPanel Orientation="Horizontal" Spacing="16">
-                                <Viewbox Width="40" Height="40">
-                                    <FontIcon Glyph="&#xE8EC;" Foreground="White"/>
-                                </Viewbox>
-                                <TextBlock Text="Gestión de Donaciones"
-                                          FontSize="32"
-                                          FontWeight="Bold"
-                                          Foreground="White"
-                                          VerticalAlignment="Center"/>
-                            </StackPanel>
-                            <TextBlock Text="Administra y monitorea todas las donaciones médicas realizadas"
-                                      FontSize="16"
-                                      Foreground="#E3F2FD"
-                                      Opacity="0.9"/>
-                        </StackPanel>
-
-                        <StackPanel Grid.Column="1" 
-                                   VerticalAlignment="Center" 
-                                   Orientation="Horizontal" 
-                                   Spacing="12">
-                            <Button Style="{StaticResource IconButton}"
-                                   Background="#FFFFFF20"
-                                   BorderThickness="0"
-                                   Click="BtnActualizar_Click"
-                                   ToolTipService.ToolTip="Actualizar datos">
-                                <FontIcon Glyph="&#xE72C;" Foreground="White" FontSize="20"/>
-                            </Button>
-                            <Button Style="{StaticResource IconButton}"
-                                   Background="#FFFFFF20"
-                                   BorderThickness="0"
-                                   ToolTipService.ToolTip="Exportar reporte">
-                                <FontIcon Glyph="&#xE8A7;" Foreground="White" FontSize="20"/>
-                            </Button>
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
-                <!-- Estadísticas -->
-                <Grid Grid.Row="1" Margin="0,0,0,24">
+            <!-- Header Mejorado -->
+            <Border Grid.Row="0" 
+                   CornerRadius="16" 
+                   Padding="32,24"
+                   Margin="0,0,0,20"
+                   Background="{StaticResource DonacionesGradient}">
+                <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="16"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="16"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="16"/>
-                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- Total Donaciones -->
-                    <Border Grid.Column="0" Style="{StaticResource StatCard}">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            
-                            <Border Background="{StaticResource SuccessGradient}"
-                                   Width="56" Height="56"
+                    <StackPanel Grid.Column="0" Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#FFFFFF30" 
+                                   Width="48" Height="48" 
                                    CornerRadius="12"
-                                   HorizontalAlignment="Left">
-                                <FontIcon Glyph="&#xE8F1;" Foreground="White" FontSize="28"/>
+                                   Padding="10">
+                                <FontIcon Glyph="&#xE8EC;" Foreground="White" FontSize="24"/>
                             </Border>
-
-                            <StackPanel Grid.Row="1" Margin="0,16,0,0">
-                                <TextBlock x:Name="txtTotalDonaciones" 
-                                          Text="0" 
-                                          FontSize="36" 
-                                          FontWeight="Bold"/>
-                                <TextBlock Text="Total Donaciones" 
-                                          FontSize="14" 
-                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            </StackPanel>
-
-                            <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="4">
-                                <FontIcon Glyph="&#xE74E;" FontSize="12" Foreground="#11998e"/>
-                                <TextBlock Text="+15 este mes" FontSize="12" Foreground="#11998e"/>
-                            </StackPanel>
-                        </Grid>
-                    </Border>
-
-                    <!-- Monto Solicitado -->
-                    <Border Grid.Column="2" Style="{StaticResource StatCard}">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            
-                            <Border Background="{StaticResource InfoGradient}"
-                                   Width="56" Height="56"
-                                   CornerRadius="12"
-                                   HorizontalAlignment="Left">
-                                <FontIcon Glyph="&#xE7BF;" Foreground="White" FontSize="28"/>
-                            </Border>
-
-                            <StackPanel Grid.Row="1" Margin="0,16,0,0">
-                                <TextBlock x:Name="txtTotalSolicitado" 
-                                          Text="RD$ 0.00" 
-                                          FontSize="30" 
-                                          FontWeight="Bold"/>
-                                <TextBlock Text="Monto Solicitado" 
-                                          FontSize="14" 
-                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            </StackPanel>
-
-                            <ProgressBar Grid.Row="2" x:Name="progressSolicitado" Value="0" Foreground="#4facfe" Height="4"/>
-                        </Grid>
-                    </Border>
-
-                    <!-- Monto Donado -->
-                    <Border Grid.Column="4" Style="{StaticResource StatCard}">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            
-                            <Border Background="{StaticResource SuccessGradient}"
-                                   Width="56" Height="56"
-                                   CornerRadius="12"
-                                   HorizontalAlignment="Left">
-                                <FontIcon Glyph="&#xE8EC;" Foreground="White" FontSize="28"/>
-                            </Border>
-
-                            <StackPanel Grid.Row="1" Margin="0,16,0,0">
-                                <TextBlock x:Name="txtTotalDonado" 
-                                          Text="RD$ 0.00" 
-                                          FontSize="30" 
-                                          FontWeight="Bold"/>
-                                <TextBlock Text="Monto Donado" 
-                                          FontSize="14" 
-                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            </StackPanel>
-
-                            <Border Grid.Row="2" 
-                                   Background="{ThemeResource AccentAAFillColorTertiaryBrush}"
-                                   CornerRadius="8"
-                                   Padding="8,4">
-                                <TextBlock x:Name="txtPorcentaje" Text="0% completado" FontSize="11" FontWeight="SemiBold"/>
-                            </Border>
-                        </Grid>
-                    </Border>
-
-                    <!-- Diferencia -->
-                    <Border Grid.Column="6" Style="{StaticResource StatCard}">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            
-                            <Border Background="{StaticResource DangerGradient}"
-                                   Width="56" Height="56"
-                                   CornerRadius="12"
-                                   HorizontalAlignment="Left">
-                                <FontIcon Glyph="&#xE8AB;" Foreground="White" FontSize="28"/>
-                            </Border>
-
-                            <StackPanel Grid.Row="1" Margin="0,16,0,0">
-                                <TextBlock x:Name="txtDiferencia" 
-                                          Text="RD$ 0.00" 
-                                          FontSize="30" 
-                                          FontWeight="Bold"/>
-                                <TextBlock Text="Diferencia Pendiente" 
-                                          FontSize="14" 
-                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            </StackPanel>
-
-                            <TextBlock Grid.Row="2" 
-                                      Text="💰 Por cubrir" 
-                                      FontSize="12" 
-                                      Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                        </Grid>
-                    </Border>
-                </Grid>
-
-                <!-- Toolbar -->
-                <Border Grid.Row="2" Style="{StaticResource ModernCard}">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <!-- Búsqueda -->
-                        <Border Grid.Column="0" 
-                               Background="{ThemeResource ControlFillColorDefaultBrush}"
-                               CornerRadius="10"
-                               Padding="16,0"
-                               Height="52"
-                               BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
-                               BorderThickness="1">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-
-                                <FontIcon Glyph="&#xE721;" 
-                                         Grid.Column="0"
-                                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                         FontSize="20"
-                                         Margin="0,0,12,0"/>
-
-                                <AutoSuggestBox x:Name="SearchBox"
-                                               Grid.Column="1"
-                                               PlaceholderText="Buscar por paciente, procedimiento, monto..."
-                                               TextChanged="SearchBox_TextChanged"
-                                               Background="Transparent"
-                                               BorderThickness="0"
-                                               VerticalAlignment="Center"/>
-                            </Grid>
-                        </Border>
-
-                        <!-- Botones -->
-                        <StackPanel Grid.Column="1" 
-                                   Orientation="Horizontal" 
-                                   Spacing="12" 
-                                   Margin="20,0,0,0">
-                            <Button Click="BtnNuevaDonacion_Click"
-                                   Style="{StaticResource ModernButton}"
-                                   Background="{StaticResource SuccessGradient}"
-                                   Foreground="White"
-                                   BorderThickness="0">
-                                <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <FontIcon Glyph="&#xE710;" FontSize="18"/>
-                                    <TextBlock Text="Nueva Donación" FontSize="14"/>
-                                </StackPanel>
-                            </Button>
-
-                            <Button x:Name="btnEditar"
-                                   Click="BtnEditarDonacion_Click"
-                                   Style="{StaticResource ModernButton}"
-                                   Background="{ThemeResource SystemFillColorAttentionBrush}"
-                                   IsEnabled="False">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <FontIcon Glyph="&#xE70F;" FontSize="16"/>
-                                    <TextBlock Text="Editar" FontSize="14"/>
-                                </StackPanel>
-                            </Button>
-
-                            <Button x:Name="btnEliminar"
-                                   Click="BtnEliminarDonacion_Click"
-                                   Style="{StaticResource ModernButton}"
-                                   Background="{StaticResource DangerGradient}"
-                                   Foreground="White"
-                                   BorderThickness="0"
-                                   IsEnabled="False">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <FontIcon Glyph="&#xE74D;" FontSize="16"/>
-                                    <TextBlock Text="Eliminar" FontSize="14"/>
-                                </StackPanel>
-                            </Button>
-
-                            <Button x:Name="btnVerPaciente"
-                                   Click="BtnVerPaciente_Click"
-                                   Style="{StaticResource ModernButton}"
-                                   Background="{StaticResource PrimaryGradient}"
-                                   Foreground="White"
-                                   BorderThickness="0"
-                                   IsEnabled="False">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <FontIcon Glyph="&#xE77B;" FontSize="16"/>
-                                    <TextBlock Text="Ver Paciente" FontSize="14"/>
-                                </StackPanel>
-                            </Button>
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
-                <!-- Tabs -->
-                <Border Grid.Row="3" 
-                       Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                       CornerRadius="12"
-                       Padding="8"
-                       Margin="0,0,0,16">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
-                            <ToggleButton Content="💰 Lista" IsChecked="True" MinWidth="100" Height="40" CornerRadius="8"/>
-                            <ToggleButton Content="📊 Estadísticas" MinWidth="120" Height="40" CornerRadius="8"/>
-                        </StackPanel>
-
-                        <TextBlock Grid.Column="2" 
-                                  VerticalAlignment="Center"
-                                  Margin="0,0,12,0"
-                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}">
-                            <Run Text="Total:"/>
-                            <Run x:Name="txtContador" Text="0" FontWeight="Bold"/>
-                            <Run Text="donaciones"/>
-                        </TextBlock>
-                    </Grid>
-                </Border>
-
-                <!-- Lista Premium -->
-                <Border Grid.Row="4" Style="{StaticResource ModernCard}" MinHeight="400">
-                    <Grid>
-                        <ScrollViewer HorizontalScrollBarVisibility="Auto" 
-                                     VerticalScrollBarVisibility="Auto"
-                                     x:Name="ListViewScroller"
-                                     Visibility="Visible">
-                            <ListView x:Name="DonacionesListView"
-                                     SelectionMode="Single"
-                                     SelectionChanged="DonacionesListView_SelectionChanged"
-                                     CornerRadius="8">
-                                <ListView.ItemContainerStyle>
-                                    <Style TargetType="ListViewItem">
-                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                        <Setter Property="Padding" Value="0"/>
-                                        <Setter Property="Margin" Value="0,0,0,2"/>
-                                    </Style>
-                                </ListView.ItemContainerStyle>
-
-                                <ListView.HeaderTemplate>
-                                    <DataTemplate>
-                                        <Border Background="{ThemeResource SystemFillColorSolidNeutralBackgroundBrush}"
-                                               CornerRadius="8,8,0,0"
-                                               Padding="20,16"
-                                               MinWidth="1400">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="80"/>
-                                                    <ColumnDefinition Width="120"/>
-                                                    <ColumnDefinition Width="140"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="160"/>
-                                                    <ColumnDefinition Width="160"/>
-                                                    <ColumnDefinition Width="160"/>
-                                                    <ColumnDefinition Width="180"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Text="ID" Grid.Column="0" FontWeight="Bold" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                                <TextBlock Text="FECHA" Grid.Column="1" FontWeight="Bold" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                                <TextBlock Text="PACIENTE" Grid.Column="2" FontWeight="Bold" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                                <TextBlock Text="PROCEDIMIENTO" Grid.Column="3" FontWeight="Bold" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                                <TextBlock Text="MONTO SOLICITADO" Grid.Column="4" FontWeight="Bold" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                                <TextBlock Text="VALOR DONACIÓN" Grid.Column="5" FontWeight="Bold" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                                <TextBlock Text="TOTAL" Grid.Column="6" FontWeight="Bold" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                                <TextBlock Text="ESTADO" Grid.Column="7" FontWeight="Bold" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ListView.HeaderTemplate>
-
-                                <ListView.ItemTemplate>
-                                    <DataTemplate x:DataType="models:Donaciones">
-                                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                               CornerRadius="8"
-                                               Padding="20,16"
-                                               Margin="0,1"
-                                               MinWidth="1400"
-                                               BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
-                                               BorderThickness="0,0,0,1">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="80"/>
-                                                    <ColumnDefinition Width="120"/>
-                                                    <ColumnDefinition Width="140"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="160"/>
-                                                    <ColumnDefinition Width="160"/>
-                                                    <ColumnDefinition Width="160"/>
-                                                    <ColumnDefinition Width="180"/>
-                                                </Grid.ColumnDefinitions>
-
-                                                <Border Grid.Column="0"
-                                                       Background="{ThemeResource AccentAAFillColorTertiaryBrush}"
-                                                       CornerRadius="8"
-                                                       Padding="8,6"
-                                                       HorizontalAlignment="Left"
-                                                       VerticalAlignment="Center">
-                                                    <TextBlock Text="{x:Bind idDonacion}"
-                                                              FontFamily="Consolas"
-                                                              FontSize="12"
-                                                              FontWeight="Bold"/>
-                                                </Border>
-
-                                                <TextBlock Text="{x:Bind FechaFormateada}" 
-                                                          Grid.Column="1"
-                                                          VerticalAlignment="Center"
-                                                          FontSize="13"/>
-
-                                                <TextBlock Text="{x:Bind idPaciente}" 
-                                                          Grid.Column="2"
-                                                          VerticalAlignment="Center"
-                                                          FontFamily="Consolas"
-                                                          FontWeight="SemiBold"
-                                                          FontSize="13"
-                                                          Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
-
-                                                <TextBlock Text="{x:Bind procedimiento}" 
-                                                          Grid.Column="3"
-                                                          VerticalAlignment="Center"
-                                                          FontSize="13"
-                                                          TextTrimming="CharacterEllipsis"/>
-
-                                                <TextBlock Grid.Column="4" VerticalAlignment="Center" FontSize="13">
-                                                    <Run Text="RD$ "/>
-                                                    <Run Text="{x:Bind montoSolicitado}" FontWeight="SemiBold"/>
-                                                </TextBlock>
-
-                                                <TextBlock Grid.Column="5" VerticalAlignment="Center" FontSize="13" Foreground="#11998e">
-                                                    <Run Text="RD$ "/>
-                                                    <Run Text="{x:Bind valor}" FontWeight="Bold"/>
-                                                </TextBlock>
-
-                                                <TextBlock Grid.Column="6" VerticalAlignment="Center" FontSize="14">
-                                                    <Run Text="RD$ "/>
-                                                    <Run Text="{x:Bind total}" FontWeight="Bold"/>
-                                                </TextBlock>
-
-                                                <Border Grid.Column="7"
-                                                       Background="{x:Bind EstadoColor}"
-                                                       CornerRadius="16"
-                                                       Padding="12,6"
-                                                       HorizontalAlignment="Left"
-                                                       VerticalAlignment="Center">
-                                                    <TextBlock Text="{x:Bind EstadoTexto}"
-                                                              FontSize="12"
-                                                              FontWeight="SemiBold"
-                                                              Foreground="White"/>
-                                                </Border>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ListView.ItemTemplate>
-                            </ListView>
-                        </ScrollViewer>
-
-                        <!-- Empty State -->
-                        <StackPanel x:Name="EmptyState"
-                                   Visibility="Collapsed"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center"
-                                   Spacing="32"
-                                   Padding="40">
-                            <Viewbox Width="200" Height="200">
-                                <Grid>
-                                    <Ellipse Fill="{StaticResource SuccessGradient}" Opacity="0.1"/>
-                                    <FontIcon Glyph="&#xE8EC;" 
-                                             Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                             FontSize="120"/>
-                                </Grid>
-                            </Viewbox>
-                            
-                            <StackPanel Spacing="12">
-                                <TextBlock Text="No hay donaciones registradas"
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Gestión de Donaciones"
                                           FontSize="28"
                                           FontWeight="Bold"
-                                          HorizontalAlignment="Center"/>
-                                <TextBlock Text="Comienza registrando la primera donación médica para pacientes"
-                                          HorizontalAlignment="Center"
-                                          TextAlignment="Center"
-                                          MaxWidth="500"
-                                          TextWrapping="Wrap"
-                                          FontSize="16"
+                                          Foreground="White"/>
+                                <TextBlock Text="Administra y monitorea todas las donaciones médicas realizadas"
+                                          FontSize="14"
+                                          Foreground="#E8EAED"
+                                          Opacity="0.9"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" 
+                               VerticalAlignment="Center" 
+                               Orientation="Horizontal" 
+                               Spacing="8">
+                        <Button Style="{StaticResource IconButton}"
+                               Background="#FFFFFF20"
+                               BorderThickness="0"
+                               Click="BtnActualizar_Click"
+                               ToolTipService.ToolTip="Actualizar datos">
+                            <FontIcon Glyph="&#xE72C;" Foreground="White" FontSize="18"/>
+                        </Button>
+                        <Button Style="{StaticResource IconButton}"
+                               Background="#FFFFFF20"
+                               BorderThickness="0"
+                               ToolTipService.ToolTip="Exportar reporte">
+                            <FontIcon Glyph="&#xE8A7;" Foreground="White" FontSize="18"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Estadísticas Mejoradas 
+            <Grid Grid.Row="1" Margin="0,0,0,20">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                 Total Donaciones 
+                <Border Grid.Column="0" Style="{StaticResource StatCard}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12">
+                            <Border Background="{StaticResource DonacionesGradient}"
+                                   Width="44" Height="44"
+                                   CornerRadius="10">
+                                <FontIcon Glyph="&#xE8F1;" Foreground="White" FontSize="20"/>
+                            </Border>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Total Donaciones" 
+                                          FontSize="12" 
                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="txtTotalDonaciones" 
+                                          Text="0" 
+                                          FontSize="28" 
+                                          FontWeight="Bold"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                 Monto Solicitado 
+                <Border Grid.Column="2" Style="{StaticResource StatCard}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12">
+                            <Border Background="{StaticResource PrimaryGradient}"
+                                   Width="44" Height="44"
+                                   CornerRadius="10">
+                                <FontIcon Glyph="&#xE7BF;" Foreground="White" FontSize="20"/>
+                            </Border>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Monto Solicitado" 
+                                          FontSize="12" 
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="txtTotalSolicitado" 
+                                          Text="RD$ 0.00" 
+                                          FontSize="24" 
+                                          FontWeight="Bold"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                Monto Donado 
+                <Border Grid.Column="4" Style="{StaticResource StatCard}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12">
+                            <Border Background="{StaticResource SuccessGradient}"
+                                   Width="44" Height="44"
+                                   CornerRadius="10">
+                                <FontIcon Glyph="&#xE8EC;" Foreground="White" FontSize="20"/>
+                            </Border>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Monto Donado" 
+                                          FontSize="12" 
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="txtTotalDonado" 
+                                          Text="RD$ 0.00" 
+                                          FontSize="24" 
+                                          FontWeight="Bold"
+                                          Foreground="#11998e"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                 Diferencia 
+                <Border Grid.Column="6" Style="{StaticResource StatCard}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12">
+                            <Border Background="{StaticResource WarningGradient}"
+                                   Width="44" Height="44"
+                                   CornerRadius="10">
+                                <FontIcon Glyph="&#xE8AB;" Foreground="White" FontSize="20"/>
+                            </Border>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Diferencia" 
+                                          FontSize="12" 
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="txtDiferencia" 
+                                          Text="RD$ 0.00" 
+                                          FontSize="24" 
+                                          FontWeight="Bold"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid> -->
+
+            <!-- Contenido Principal -->
+            <Grid Grid.Row="2">
+                <!-- Panel Principal de Lista -->
+                <Border Style="{StaticResource ModernCard}" Margin="0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Barra de Herramientas -->
+                        <Grid Grid.Row="0" Margin="0,0,0,16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Búsqueda -->
+                            <Border Grid.Column="0" 
+                                   Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                   CornerRadius="8"
+                                   Padding="12,0"
+                                   Height="44"
+                                   BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                                   BorderThickness="1"
+                                   Margin="0,0,12,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <FontIcon Glyph="&#xE721;" 
+                                             Grid.Column="0"
+                                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                             FontSize="16"
+                                             Margin="0,0,8,0"/>
+
+                                    <AutoSuggestBox x:Name="SearchBox"
+                                                   Grid.Column="1"
+                                                   PlaceholderText="Buscar por paciente, procedimiento..."
+                                                   TextChanged="SearchBox_TextChanged"
+                                                   Background="Transparent"
+                                                   BorderThickness="0"
+                                                   VerticalAlignment="Center"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Botones de Acción -->
+                            <StackPanel Grid.Column="1" 
+                                       Orientation="Horizontal" 
+                                       Spacing="8">
+                                <Button Click="BtnNuevaDonacion_Click"
+                                       Style="{StaticResource ModernButton}"
+                                       Background="{StaticResource DonacionesGradient}"
+                                       Foreground="White"
+                                       BorderThickness="0">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <FontIcon Glyph="&#xE710;" FontSize="16"/>
+                                        <TextBlock Text="Nueva" FontSize="13"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Filtros -->
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="12" Margin="0,0,0,16">
+                            <Border VerticalAlignment="Bottom" 
+                                   Background="{ThemeResource SystemFillColorSolidNeutralBackgroundBrush}"
+                                   CornerRadius="6"
+                                   Padding="12,8"
+                                   Margin="0,0,0,2">
+                                <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}">
+                                    <Run Text="Total:"/>
+                                    <Run x:Name="txtContador" Text="0" FontWeight="Bold"/>
+                                    <Run Text="donaciones"/>
+                                </TextBlock>
+                            </Border>
+
+                            <Border VerticalAlignment="Bottom" 
+                                   Background="{StaticResource DonacionesGradient}"
+                                   CornerRadius="6"
+                                   Padding="12,8"
+                                   Margin="0,0,0,2">
+                                <TextBlock Foreground="White">
+                                    <Run Text="Completado:"/>
+                                    <Run x:Name="txtPorcentaje" Text="0%" FontWeight="Bold"/>
+                                </TextBlock>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Separador -->
+                        <Border Grid.Row="2" 
+                               Height="1" 
+                               Background="{ThemeResource DividerStrokeColorDefaultBrush}"
+                               Margin="0,0,0,16"/>
+
+                        <!-- Lista de Donaciones -->
+                        <Grid Grid.Row="3">
+                            <ScrollViewer x:Name="ListViewScroller"
+                                         VerticalScrollBarVisibility="Auto">
+                                <ListView x:Name="DonacionesListView"
+                                         SelectionMode="Single"
+                                         SelectionChanged="DonacionesListView_SelectionChanged">
+                                    <ListView.ItemContainerStyle>
+                                        <Style TargetType="ListViewItem">
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                            <Setter Property="Padding" Value="12"/>
+                                            <Setter Property="Margin" Value="0,0,0,8"/>
+                                        </Style>
+                                    </ListView.ItemContainerStyle>
+
+                                    <ListView.ItemTemplate>
+                                        <DataTemplate x:DataType="models:Donaciones">
+                                            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                                   CornerRadius="10"
+                                                   Padding="20,16"
+                                                   BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                   BorderThickness="1">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <!-- Estado -->
+                                                    <Border Grid.Column="0"
+                                                           Background="{x:Bind EstadoColor}"
+                                                           CornerRadius="8"
+                                                           Padding="10,6"
+                                                           Margin="0,0,16,0"
+                                                           VerticalAlignment="Center">
+                                                        <TextBlock Text="{x:Bind EstadoTexto}"
+                                                                  FontSize="11"
+                                                                  FontWeight="SemiBold"
+                                                                  Foreground="White"/>
+                                                    </Border>
+
+                                                    <!-- ID y Fecha -->
+                                                    <StackPanel Grid.Column="1" 
+                                                               VerticalAlignment="Center"
+                                                               Spacing="4"
+                                                               Margin="0,0,20,0"
+                                                               MinWidth="120">
+                                                        <TextBlock Text="{x:Bind idDonacion}"
+                                                                  FontFamily="Consolas"
+                                                                  FontSize="15"
+                                                                  FontWeight="Bold"
+                                                                  Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                                        <TextBlock Text="{x:Bind FechaFormateada}" 
+                                                                  FontSize="11"
+                                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                    </StackPanel>
+
+                                                    <!-- Información Principal -->
+                                                    <StackPanel Grid.Column="2" 
+                                                               VerticalAlignment="Center"
+                                                               Spacing="6">
+                                                        <TextBlock FontSize="15" FontWeight="SemiBold">
+                                                            <Run Text="Paciente ID:"/>
+                                                            <Run Text="{x:Bind idPaciente}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                                        </TextBlock>
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            
+                                                            <TextBlock Grid.Column="0"
+                                                                      Text="{x:Bind procedimiento}" 
+                                                                      FontSize="12"
+                                                                      FontStyle="Italic"
+                                                                      Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                      TextTrimming="CharacterEllipsis"
+                                                                      MaxWidth="400"/>
+                                                        </Grid>
+                                                    </StackPanel>
+
+                                                    <!-- Montos -->
+                                                    <StackPanel Grid.Column="3" 
+                                                               VerticalAlignment="Center"
+                                                               HorizontalAlignment="Right"
+                                                               Margin="20,0,16,0"
+                                                               Spacing="4">
+                                                        <TextBlock FontSize="12" 
+                                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}">
+                                                            <Run Text="Solicitado: RD$"/>
+                                                            <Run Text="{x:Bind montoSolicitado}"/>
+                                                        </TextBlock>
+                                                        <TextBlock FontSize="16" 
+                                                                  FontWeight="Bold">
+                                                            <Run Text="RD$ "/>
+                                                            <Run Text="{x:Bind total}" Foreground="#11998e"/>
+                                                        </TextBlock>
+                                                    </StackPanel>
+
+                                                    <!-- Botones de Acción -->
+                                                    <StackPanel Grid.Column="4" 
+                                                               Orientation="Horizontal" 
+                                                               Spacing="6"
+                                                               VerticalAlignment="Center">
+                                                        <Button Click="BtnVerPaciente_Click"
+                                                               Tag="{x:Bind idDonacion}"
+                                                               Style="{StaticResource IconButton}"
+                                                               Background="{StaticResource PrimaryGradient}"
+                                                               BorderThickness="0"
+                                                               ToolTipService.ToolTip="Ver paciente">
+                                                            <FontIcon Glyph="&#xE77B;" FontSize="14" Foreground="White"/>
+                                                        </Button>
+                                                        
+                                                        <Button Click="BtnEditarDonacion_Click"
+                                                               Tag="{x:Bind idDonacion}"
+                                                               Style="{StaticResource IconButton}"
+                                                               ToolTipService.ToolTip="Editar">
+                                                            <FontIcon Glyph="&#xE70F;" FontSize="14"/>
+                                                        </Button>
+                                                        
+                                                        <Button Click="BtnEliminarDonacion_Click"
+                                                               Tag="{x:Bind idDonacion}"
+                                                               Style="{StaticResource IconButton}"
+                                                               Background="{StaticResource DangerGradient}"
+                                                               BorderThickness="0"
+                                                               ToolTipService.ToolTip="Eliminar">
+                                                            <FontIcon Glyph="&#xE74D;" FontSize="14" Foreground="White"/>
+                                                        </Button>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListView.ItemTemplate>
+                                </ListView>
+                            </ScrollViewer>
+
+                            <!-- Empty State -->
+                            <StackPanel x:Name="EmptyState"
+                                       Visibility="Collapsed"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Spacing="24"
+                                       Padding="40">
+                                <Border Background="{StaticResource DonacionesGradient}"
+                                       Width="120" Height="120"
+                                       CornerRadius="60"
+                                       Opacity="0.1"/>
+                                <FontIcon Glyph="&#xE8EC;" 
+                                         FontSize="80"
+                                         Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                         Margin="0,-140,0,60"/>
+                                
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="No hay donaciones registradas"
+                                              FontSize="24"
+                                              FontWeight="SemiBold"
+                                              HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Comienza registrando la primera donación"
+                                              HorizontalAlignment="Center"
+                                              FontSize="14"
+                                              Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                </StackPanel>
+
+                                <Button Click="BtnNuevaDonacion_Click"
+                                       Background="{StaticResource DonacionesGradient}"
+                                       Foreground="White"
+                                       BorderThickness="0"
+                                       Height="48"
+                                       MinWidth="180"
+                                       CornerRadius="8"
+                                       FontSize="15"
+                                       FontWeight="SemiBold">
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <FontIcon Glyph="&#xE710;" FontSize="18"/>
+                                        <TextBlock Text="Crear Donación"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Paginación -->
+                        <Grid Grid.Row="4"
+                             Margin="0,16,0,0"
+                             Padding="0,12,0,0"
+                             BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                             BorderThickness="0,1,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Info de Página -->
+                            <StackPanel Grid.Column="0" 
+                                       Orientation="Horizontal" 
+                                       Spacing="8"
+                                       VerticalAlignment="Center">
+                                <Border Background="{StaticResource DonacionesGradient}"
+                                       CornerRadius="6"
+                                       Padding="10,6">
+                                    <TextBlock x:Name="txtPageInfo"
+                                              Text="{x:Bind PageInfo, Mode=OneWay}"
+                                              FontSize="12"
+                                              FontWeight="SemiBold"
+                                              Foreground="White"/>
+                                </Border>
                             </StackPanel>
 
-                            <Button Click="BtnNuevaDonacion_Click"
-                                   Background="{StaticResource SuccessGradient}"
-                                   Foreground="White"
-                                   BorderThickness="0"
-                                   Height="56"
-                                   MinWidth="220"
-                                   CornerRadius="12"
-                                   FontSize="16"
-                                   FontWeight="SemiBold">
-                                <StackPanel Orientation="Horizontal" Spacing="12">
-                                    <FontIcon Glyph="&#xE710;" FontSize="20"/>
-                                    <TextBlock Text="Registrar Primera Donación"/>
-                                </StackPanel>
-                            </Button>
-                        </StackPanel>
+                            <!-- Botones de Navegación -->
+                            <StackPanel Grid.Column="2" 
+                                       Orientation="Horizontal" 
+                                       Spacing="6"
+                                       VerticalAlignment="Center">
+                                <Button x:Name="btnFirstPage"
+                                       Click="BtnFirstPage_Click"
+                                       Style="{StaticResource IconButton}"
+                                       IsEnabled="{x:Bind HasPreviousPage, Mode=OneWay}"
+                                       ToolTipService.ToolTip="Primera">
+                                    <FontIcon Glyph="&#xE892;" FontSize="14"/>
+                                </Button>
+
+                                <Button x:Name="btnPreviousPage"
+                                       Click="BtnPreviousPage_Click"
+                                       IsEnabled="{x:Bind HasPreviousPage, Mode=OneWay}"
+                                       Width="70"
+                                       Height="40"
+                                       CornerRadius="8"
+                                       ToolTipService.ToolTip="Anterior">
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <FontIcon Glyph="&#xE76B;" FontSize="12"/>
+                                        <TextBlock Text="Ant" FontSize="12" FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <Border Background="{ThemeResource AccentFillColorSelectedTextBackgroundBrush}"
+                                       CornerRadius="8"
+                                       Padding="14,10"
+                                       MinWidth="50">
+                                    <TextBlock Text="{x:Bind CurrentPage, Mode=OneWay}"
+                                              FontSize="14"
+                                              FontWeight="Bold"
+                                              Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                              HorizontalAlignment="Center"/>
+                                </Border>
+
+                                <Button x:Name="btnNextPage"
+                                       Click="BtnNextPage_Click"
+                                       IsEnabled="{x:Bind HasNextPage, Mode=OneWay}"
+                                       Width="70"
+                                       Height="40"
+                                       CornerRadius="8"
+                                       ToolTipService.ToolTip="Siguiente">
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <TextBlock Text="Sig" FontSize="12" FontWeight="SemiBold"/>
+                                        <FontIcon Glyph="&#xE76C;" FontSize="12"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <Button x:Name="btnLastPage"
+                                       Click="BtnLastPage_Click"
+                                       Style="{StaticResource IconButton}"
+                                       IsEnabled="{x:Bind HasNextPage, Mode=OneWay}"
+                                       ToolTipService.ToolTip="Última">
+                                    <FontIcon Glyph="&#xE893;" FontSize="14"/>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
                     </Grid>
                 </Border>
             </Grid>
-        </ScrollViewer>
+        </Grid>
+
+        
     </Grid>
 </Page>

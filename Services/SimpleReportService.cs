@@ -33,7 +33,7 @@ namespace RamaFemenina.Services
 
         #region Métodos Principales de Reportes (Optimizados)
 
-        // Opción 1: Reporte de Área (Optimizado)
+        // Opción 1: Reporte de área (Optimizado)
         public async Task<byte[]> GenerarReporteAreaAsync()
         {
             var pacientesData = await _context.Pacientes
@@ -49,7 +49,7 @@ namespace RamaFemenina.Services
         {
             var pacientesFallecidas = await _context.Pacientes
                 .AsNoTracking()
-                .Where(p => p.observaciones != null && p.observaciones.ToLower().Contains("fallecida"))
+                .Where(p => p.estado != null && p.estado.ToLower().Contains("fallecid"))
                 .Select(p => new 
                 { 
                     p.cedula, 
@@ -57,7 +57,7 @@ namespace RamaFemenina.Services
                     p.telefono, 
                     p.celular, 
                     p.area, 
-                    p.observaciones 
+                    p.estado 
                 })
                 .ToListAsync();
             
@@ -65,11 +65,11 @@ namespace RamaFemenina.Services
         }
 
         // Opción 3: Reporte Donaciones por Paciente (Optimizado)
-        public async Task<byte[]> GenerarReporteDonacionesPacienteAsync(string idPaciente)
+        public async Task<byte[]> GenerarReporteDonacionesPacienteAsync(int idPaciente)
         {
             var pacienteTask = _context.Pacientes
                 .AsNoTracking()
-                .Where(p => p.cedula == idPaciente)
+                .Where(p => p.idpaciente == idPaciente)
                 .Select(p => new { p.cedula, p.nombre, p.telefono, p.celular, p.area })
                 .FirstOrDefaultAsync();
 
@@ -90,7 +90,7 @@ namespace RamaFemenina.Services
             await Task.WhenAll(pacienteTask, donacionesTask);
             
             return await Task.Run(() => GenerarPdfReporteDonacionesPaciente(
-                donacionesTask.Result, 
+                donacionesTask.Result.Cast<dynamic>(), 
                 pacienteTask.Result));
         }
 
@@ -99,7 +99,7 @@ namespace RamaFemenina.Services
         {
             var pacientesActivas = await _context.Pacientes
                 .AsNoTracking()
-                .Where(p => p.observaciones == null || !p.observaciones.ToLower().Contains("fallecida"))
+                .Where(p => p.estado == null || !p.estado.ToLower().Contains("fallecid"))
                 .OrderBy(p => p.nombre)
                 .Select(p => new
                 {
@@ -144,7 +144,7 @@ namespace RamaFemenina.Services
 
             var datosPorGenero = await _context.Pacientes
                 .AsNoTracking()
-                .Where(p => p.observaciones == null || !p.observaciones.ToLower().Contains("fallecida"))
+                .Where(p => p.estado == null || !p.estado.ToLower().Contains("fallecid"))
                 .GroupBy(p => p.sexo ?? "No especificado")
                 .Select(g => new
                 {
@@ -216,7 +216,7 @@ namespace RamaFemenina.Services
             var agrupados = new Dictionary<string, int>();
             foreach (var item in lista)
             {
-                string area = item.area ?? "Sin Área";
+                string area = item.area ?? "Sin área";
                 if (!agrupados.ContainsKey(area))
                     agrupados[area] = 0;
                 agrupados[area]++;
@@ -257,7 +257,7 @@ namespace RamaFemenina.Services
             table.SetWidth(UnitValue.CreatePercentValue(100));
             table.UseAllAvailableWidth();
 
-            string[] headers = { "Cédula", "Nombre", "Teléfono", "Área", "Observaciones" };
+            string[] headers = { "Cédula", "Nombre", "Teléfono", "Área", "Estado" };
             foreach (var header in headers)
             {
                 AgregarHeaderCelda(table, header);
@@ -270,8 +270,8 @@ namespace RamaFemenina.Services
                 table.AddCell(CreateCell(paciente.cedula ?? ""));
                 table.AddCell(CreateCell(paciente.nombre ?? ""));
                 table.AddCell(CreateCell(paciente.telefono ?? paciente.celular ?? "N/A"));
-                table.AddCell(CreateCell(paciente.area ?? "Sin Área"));
-                table.AddCell(CreateCell(paciente.observaciones ?? ""));
+                table.AddCell(CreateCell(paciente.area ?? "Sin área"));
+                table.AddCell(CreateCell(paciente.estado ?? ""));
             }
 
             document.Add(table);
@@ -310,7 +310,7 @@ namespace RamaFemenina.Services
 
                 document.Add(new Paragraph($"Cédula: {paciente.cedula}"));
                 document.Add(new Paragraph($"Teléfono: {paciente.telefono ?? paciente.celular ?? "No disponible"}"));
-                document.Add(new Paragraph($"Área: {paciente.area ?? "Sin Área"}"));
+                document.Add(new Paragraph($"Área: {paciente.area ?? "Sin área"}"));
                 document.Add(new Paragraph("\n"));
             }
 
@@ -380,7 +380,7 @@ namespace RamaFemenina.Services
                 table.AddCell(CreateCell(paciente.nombre ?? ""));
                 table.AddCell(CreateCell(paciente.telefono ?? "N/A"));
                 table.AddCell(CreateCell(paciente.celular ?? "N/A"));
-                table.AddCell(CreateCell(paciente.area ?? "Sin Área"));
+                table.AddCell(CreateCell(paciente.area ?? "Sin área"));
                 table.AddCell(CreateCell(paciente.sexo ?? "N/E"));
                 table.AddCell(CreateCell(paciente.nrecord ?? ""));
             }

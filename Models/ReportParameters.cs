@@ -55,7 +55,7 @@ namespace RamaFemenina.Models
     /// </summary>
     public class ReportParameters
     {
-        public string? IdPaciente { get; set; }
+        public int? IdPaciente { get; set; }
         public int? Anio { get; set; }
         public ReciboParametros? ReciboParms { get; set; }
         public ReciboCompletoParametros? ReciboCompletoParms { get; set; }

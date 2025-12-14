@@ -45,7 +45,7 @@ namespace RamaFemenina.Services
         /// <summary>
         /// Opción 3: Reporte de Donaciones por Paciente
         /// </summary>
-        public async Task<string> GenerarReporteDonacionesPacienteAsync(string idPaciente)
+        public async Task<string> GenerarReporteDonacionesPacienteAsync(int idPaciente)
         {
             return await _pdfService.GenerarReporteDonacionesPacienteAsync(idPaciente);
         }
@@ -67,7 +67,7 @@ namespace RamaFemenina.Services
         }
 
         /// <summary>
-        /// Opción 6: Reporte por Área y Año
+        /// Opción 6: Reporte por área y Año
         /// </summary>
         public async Task<string> GenerarReporteAreaPorAnioAsync(int anio)
         {
@@ -109,12 +109,12 @@ namespace RamaFemenina.Services
         {
             return new List<string>
             {
-                "1. Reporte por Área",
+                "1. Reporte por área",
                 "2. Reporte de Fallecidas",
                 "3. Reporte de Donaciones por Paciente",
                 "4. Reporte de Pacientes Activas",
                 "5. Reporte Detallado de Fallecidas",
-                "6. Reporte por Área y Año",
+                "6. Reporte por área y Año",
                 "7. Recibo de Ingresos",
                 "8. Recibo de Ingreso Completo",
                 "9. Recibo de Desembolso"

@@ -6,7 +6,7 @@ using Microsoft.UI;
 
 namespace RamaFemenina.Models
 {
-    [Table("CajaChica")]
+    [Table("cajachica")]
     public class CajaChica
     {
         [Key]
@@ -14,6 +14,7 @@ namespace RamaFemenina.Models
         [Column("idrecibo")]
         public int IdRecibo { get; set; }
         
+        [Required]
         [Column("recibo")]
         public int NumeroRecibo { get; set; }
         
@@ -23,16 +24,22 @@ namespace RamaFemenina.Models
         
         [Required]
         [Column("nombre")]
+        [MaxLength(50)]
         public string PagadoA { get; set; } = string.Empty;
         
+        [Required]
         [Column("monto")]
         public decimal Monto { get; set; }
         
+        [Required]
         [Column("cargoa")]
-        public string? ConCargoA { get; set; }
+        [MaxLength(50)]
+        public string ConCargoA { get; set; } = string.Empty;
         
+        [Required]
         [Column("concepto")]
-        public string? Concepto { get; set; }
+        [MaxLength(100)]
+        public string Concepto { get; set; } = string.Empty;
 
         // Propiedades computadas para la UI
         [NotMapped]

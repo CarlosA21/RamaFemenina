@@ -14,21 +14,45 @@
     </Window.SystemBackdrop>
 
     <Grid Background="Transparent">
-        <!-- Botón flotante para gestión de usuarios (esquina superior derecha) -->
-        <Button
-            x:Name="btnGestionUsuarios"
-            Content="👥 Gestión de Usuarios"
-            HorizontalAlignment="Right"
-            VerticalAlignment="Top"
-            Margin="24"
-            Padding="16,10"
-            CornerRadius="8"
-            Click="BtnGestionUsuarios_Click"
-            ToolTipService.ToolTip="Administrar usuarios del sistema">
-            <Button.KeyboardAccelerators>
-                <KeyboardAccelerator Key="U" Modifiers="Control"/>
-            </Button.KeyboardAccelerators>
-        </Button>
+        <!-- Botones flotantes (esquina superior derecha) -->
+        <StackPanel HorizontalAlignment="Right"
+                   VerticalAlignment="Top"
+                   Orientation="Horizontal"
+                   Margin="24"
+                   Spacing="12">
+            
+            <!-- Botón de Configuración de BD -->
+            <Button
+                x:Name="btnConfigDB"
+                CornerRadius="8"
+                Padding="16,10"
+                Click="BtnConfigDB_Click"
+                ToolTipService.ToolTip="Configurar conexión a base de datos">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE968;" FontSize="16"/>
+                    <TextBlock Text="Configurar BD"/>
+                </StackPanel>
+                <Button.KeyboardAccelerators>
+                    <KeyboardAccelerator Key="D" Modifiers="Control"/>
+                </Button.KeyboardAccelerators>
+            </Button>
+            
+            <!-- Botón de Gestión de Usuarios -->
+            <Button
+                x:Name="btnGestionUsuarios"
+                CornerRadius="8"
+                Padding="16,10"
+                Click="BtnGestionUsuarios_Click"
+                ToolTipService.ToolTip="Administrar usuarios del sistema">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE8D4;" FontSize="16"/>
+                    <TextBlock Text="Gestión de Usuarios"/>
+                </StackPanel>
+                <Button.KeyboardAccelerators>
+                    <KeyboardAccelerator Key="U" Modifiers="Control"/>
+                </Button.KeyboardAccelerators>
+            </Button>
+        </StackPanel>
 
         <Border
             HorizontalAlignment="Center"

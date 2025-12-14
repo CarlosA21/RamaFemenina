@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -13,290 +14,667 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using RamaFemenina.Models;
 using RamaFemenina.Data;
+using RamaFemenina.Services;
+using RamaFemenina.Extensions;
 
 namespace RamaFemenina;
 
 public sealed partial class PacientesPage : Page, INotifyPropertyChanged
 {
-    private readonly RamaFemeninaContext _context;
-    private bool _isPatientSelected;
-    private bool _datosYaCargados = false;
+private readonly IServiceProvider _serviceProvider;
+private readonly DataCacheService _cacheService;
+private bool _isPatientSelected;
+private Timer _searchDelayTimer;
+private bool _isPageActive = true;
+private bool _isLoading;
     
-    public bool IsPatientSelected
+// Propiedades de paginación
+private int _currentPage = 1;
+private int _pageSize = 50;
+private int _totalCount = 0;
+private string _currentSearchTerm = "";
+
+public bool IsPatientSelected
+{
+    get => _isPatientSelected;
+    set
     {
-        get => _isPatientSelected;
-        set
+        if (_isPatientSelected != value)
         {
-            if (_isPatientSelected != value)
+            _isPatientSelected = value;
+            OnPropertyChanged();
+        }
+    }
+}
+
+public int CurrentPage
+{
+    get => _currentPage;
+    set
+    {
+        if (_currentPage != value)
+        {
+            _currentPage = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(TotalPages));
+            OnPropertyChanged(nameof(HasPreviousPage));
+            OnPropertyChanged(nameof(HasNextPage));
+            OnPropertyChanged(nameof(PageInfo));
+        }
+    }
+}
+
+public int TotalCount
+{
+    get => _totalCount;
+    set
+    {
+        if (_totalCount != value)
+        {
+            _totalCount = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(TotalPages));
+            OnPropertyChanged(nameof(PageInfo));
+        }
+    }
+}
+
+public int TotalPages => TotalCount == 0 ? 0 : (int)Math.Ceiling((double)TotalCount / _pageSize);
+public bool HasPreviousPage => CurrentPage > 1;
+public bool HasNextPage => CurrentPage < TotalPages;
+public string PageInfo => $"Página {CurrentPage} de {TotalPages} ({TotalCount} registros)";
+
+public ObservableCollection<Paciente> Pacientes { get; set; }
+
+public event PropertyChangedEventHandler PropertyChanged;
+
+private void OnPropertyChanged([CallerMemberName] string propertyName = null)
+{
+    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+}
+
+public bool IsLoading
+{
+    get => _isLoading;
+    set
+    {
+        if (_isLoading != value)
+        {
+            _isLoading = value;
+            OnPropertyChanged();
+            
+            if (this.FindName("LoadingIndicator") is ProgressRing loadingIndicator)
+                loadingIndicator.IsActive = value;
+            if (this.FindName("LoadingOverlay") is Grid overlay)
+                overlay.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
+        }
+    }
+}
+
+public PacientesPage()
+{
+    InitializeComponent();
+        
+    var app = Application.Current as App;
+    _serviceProvider = app!.Services;
+    _cacheService = app.Services.GetRequiredService<DataCacheService>();
+        
+    Pacientes = new ObservableCollection<Paciente>();
+        
+    // Inicialización de timer para búsqueda con delay
+    _searchDelayTimer = new Timer(PerformSearch, null, Timeout.Infinite, Timeout.Infinite);
+        
+    // Habilitar caché de navegación para evitar reconstrucciones y mantener estado
+    NavigationCacheMode = NavigationCacheMode.Enabled;
+
+    // Iniciar animación de entrada
+    this.Loaded += (s, e) => 
+    {
+        try 
+        { 
+            if (this.FindName("FadeInStoryboard") is Storyboard storyboard)
             {
-                _isPatientSelected = value;
-                OnPropertyChanged();
+                storyboard.Begin();
             }
-        }
-    }
+        } 
+        catch { /* Ignorar errores de animación */ }
 
-    public ObservableCollection<Paciente> Pacientes { get; set; }
-    public ObservableCollection<Paciente> PacientesFiltrados { get; set; }
-    public ObservableCollection<Donaciones> Donaciones { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
-
-    private void OnPropertyChanged([CallerMemberName] string propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
-
-    public PacientesPage()
-    {
-        InitializeComponent();
-        
-        // Habilitar caché de navegación
-        NavigationCacheMode = NavigationCacheMode.Enabled;
-
-        var app = Application.Current as App;
-        _context = app!.Services.GetRequiredService<RamaFemeninaContext>();
-        
-        Pacientes = new ObservableCollection<Paciente>();
-        PacientesFiltrados = new ObservableCollection<Paciente>();
-        Donaciones = new ObservableCollection<Donaciones>();
-        
-        // Cargar datos solo si no se han cargado antes
-        if (!_datosYaCargados)
+        // Garantizar primera carga de datos al mostrar la página
+        if (Pacientes.Count == 0)
         {
-            _ = CargarPacientesAsync();
+            _ = LoadPageAsync(1);
         }
-        
-        // Iniciar animación de entrada
-        this.Loaded += (s, e) => 
-        {
-            try 
-            { 
-                if (this.FindName("FadeInStoryboard") is Storyboard storyboard)
-                {
-                    storyboard.Begin();
-                }
-            } 
-            catch { }
-        };
-    }
+    };
+}
 
-    protected override void OnNavigatedTo(NavigationEventArgs e)
+    protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
+        _isPageActive = true;
         
-        // Solo recargar si es la primera vez o si se pasa un parámetro para forzar recarga
-        if (!_datosYaCargados || e.Parameter?.ToString() == "Reload")
+        // Cargar datos solo si es necesario
+        if (e.Parameter?.ToString() == "Reload" || Pacientes.Count == 0)
         {
-            _ = CargarPacientesAsync();
+            await LoadPageAsync(1);
         }
     }
 
-    private async Task CargarPacientesAsync()
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
+        base.OnNavigatedFrom(e);
+        _isPageActive = false;
+    }
+
+    private async Task LoadPageAsync(int page, bool updateStats = true)
+    {
+        if (!_isPageActive) return;
+        
+        System.Diagnostics.Debug.WriteLine($"\n[PACIENTES-LOAD] ===== LoadPageAsync INICIO =====");
+        System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] Página solicitada: {page}");
+        System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] CurrentPage ANTES: {CurrentPage}");
+        System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] TotalCount ANTES: {TotalCount}");
+        System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] TotalPages ANTES: {TotalPages}");
+        System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] HasNextPage ANTES: {HasNextPage}");
+        System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] Término de búsqueda: '{_currentSearchTerm}'");
+        
         try
         {
+            IsLoading = true;
+            var pacientes = await _cacheService.GetPacientesPaginatedAsync(page, _pageSize, _currentSearchTerm);
+            var totalCount = await _cacheService.GetPacientesTotalCountAsync(_currentSearchTerm);
+
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] Registros obtenidos: {pacientes.Count()}");
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] Total count de BD: {totalCount}");
+
+            if (!_isPageActive) return;
+
             Pacientes.Clear();
-            
-            var pacientes = await _context.Pacientes.ToListAsync();
-            
             foreach (var paciente in pacientes)
             {
+                // Limpiar datos NULL problemáticos
+                if (paciente.nombre == null) paciente.nombre = "Sin especificar";
+                if (paciente.cedula == null) paciente.cedula = "N/A";
+                if (paciente.estado == null) paciente.estado = "Activo";
+
                 Pacientes.Add(paciente);
             }
 
-            ActualizarListaFiltrada();
-            ActualizarEstadisticas();
-            EmptyState.Visibility = Pacientes.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            CurrentPage = page;
+            TotalCount = totalCount;
             
-            // Marcar que los datos ya fueron cargados
-            _datosYaCargados = true;
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] CurrentPage DESPUÉS: {CurrentPage}");
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] TotalCount DESPUÉS: {TotalCount}");
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] TotalPages DESPUÉS: {TotalPages}");
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] HasPreviousPage DESPUÉS: {HasPreviousPage}");
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] HasNextPage DESPUÉS: {HasNextPage}");
+
+            // Actualizar controles de UI
+            if (PacientesListView != null)
+                PacientesListView.ItemsSource = Pacientes;
+            
+            var hayPacientes = Pacientes.Count > 0;
+            if (this.FindName("ListViewScroller") is UIElement listScroller)
+                listScroller.Visibility = hayPacientes ? Visibility.Visible : Visibility.Collapsed;
+            if (EmptyState != null)
+                EmptyState.Visibility = hayPacientes ? Visibility.Collapsed : Visibility.Visible;
+            
+            if (updateStats && _isPageActive)
+            {
+                _ = ActualizarEstadisticasAsync();
+            }
         }
         catch (Exception ex)
         {
-            await ShowInfoDialog("Error", $"Error al cargar pacientes: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"Error al cargar pacientes: {ex.Message}");
+        }
+        finally
+        {
+            IsLoading = false;
+            
+            // CRÍTICO: Actualizar controles de paginación DESPUÉS de IsLoading = false
+            // para que los botones se habiliten correctamente
+            UpdatePaginationControls();
         }
     }
 
-    private void ActualizarEstadisticas()
+    private void UpdatePaginationControls()
+    {
+        System.Diagnostics.Debug.WriteLine($"[PACIENTES-UI] UpdatePaginationControls - IsLoading: {IsLoading}");
+        
+        if (this.FindName("btnPreviousPage") is Button prevBtn)
+        {
+            prevBtn.IsEnabled = HasPreviousPage && !IsLoading;
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-UI] btnPreviousPage.IsEnabled = {prevBtn.IsEnabled} (HasPreviousPage: {HasPreviousPage})");
+        }
+            
+        if (this.FindName("btnNextPage") is Button nextBtn)
+        {
+            nextBtn.IsEnabled = HasNextPage && !IsLoading;
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-UI] btnNextPage.IsEnabled = {nextBtn.IsEnabled} (HasNextPage: {HasNextPage})");
+        }
+            
+        if (this.FindName("btnFirstPage") is Button firstBtn)
+        {
+            firstBtn.IsEnabled = HasPreviousPage && !IsLoading;
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-UI] btnFirstPage.IsEnabled = {firstBtn.IsEnabled}");
+        }
+            
+        if (this.FindName("btnLastPage") is Button lastBtn)
+        {
+            lastBtn.IsEnabled = HasNextPage && !IsLoading;
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-UI] btnLastPage.IsEnabled = {lastBtn.IsEnabled}");
+        }
+
+        if (this.FindName("txtPageInfo") is TextBlock pageInfoText)
+        {
+            pageInfoText.Text = PageInfo;
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-UI] PageInfo: {PageInfo}");
+        }
+        
+        System.Diagnostics.Debug.WriteLine($"[PACIENTES-UI] ===== UpdatePaginationControls FIN =====\n");
+    }
+
+    private void PerformSearch(object state)
+    {
+        if (!_isPageActive) return;
+        
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal, async () =>
+        {
+            // Resetear a la primera página al realizar una búsqueda
+            CurrentPage = 1;
+            _cacheService.InvalidateCache("pacientes");
+            await LoadPageAsync(CurrentPage);
+        });
+    }
+
+    // Método duplicado eliminado
+
+    private async Task ActualizarEstadisticasAsync()
     {
         try
         {
-            // Total de pacientes
-            if (this.FindName("txtTotalPacientes") is TextBlock totalText)
-                totalText.Text = Pacientes.Count.ToString();
-                
-            if (this.FindName("txtContador") is Run contadorRun)
-                contadorRun.Text = Pacientes.Count.ToString();
+            if (!_isPageActive) return;
             
-            // Pacientes activos (aquellos sin "fallecido" en observaciones)
-            var activos = Pacientes.Count(p => string.IsNullOrEmpty(p.observaciones) || 
-                                               !p.observaciones.Contains("fallecid", StringComparison.OrdinalIgnoreCase));
-            if (this.FindName("txtPacientesActivos") is TextBlock activosText)
-                activosText.Text = activos.ToString();
+            // Usar una instancia separada del contexto para estadísticas
+            using var scope = _serviceProvider.CreateScope();
+            using var context = scope.ServiceProvider.GetRequiredService<RamaFemeninaContext>();
             
-            // Contar áreas únicas
-            var areasUnicas = Pacientes.Where(p => !string.IsNullOrEmpty(p.area))
-                                       .Select(p => p.area)
-                                       .Distinct()
-                                       .Count();
-            if (this.FindName("txtPorArea") is TextBlock areasText)
-                areasText.Text = areasUnicas.ToString();
-            
-            // Pacientes registrados este mes
-            if (this.FindName("txtUltimoMes") is TextBlock mesText)
-                mesText.Text = "N/A";
+            var totalPacientes = await context.Pacientes.CountAsync().ConfigureAwait(false);
+
+            if (!_isPageActive) return;
+
+            var pacientesActivos = await context.Pacientes
+                .CountAsync(p => p.estado == "Activo").ConfigureAwait(false);
+
+            var pacientesMujeres = await context.Pacientes
+                .CountAsync(p => p.sexo == "Femenino").ConfigureAwait(false);
+
+            // Pacientes con donaciones
+            var pacientesConDonaciones = await context.Pacientes
+                .Where(p => context.Donaciones.Any(d => d.idPaciente == p.idpaciente))
+                .CountAsync().ConfigureAwait(false);
+
+            // Actualizar en UI Thread
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                try
+                {
+                    if (!_isPageActive) return;
+
+                    if (this.FindName("txtTotalPacientes") is TextBlock totalText)
+                        totalText.Text = totalPacientes.ToString();
+                        
+                    if (this.FindName("txtContador") is Microsoft.UI.Xaml.Documents.Run contadorRun)
+                        contadorRun.Text = TotalCount.ToString();
+                    
+                    if (this.FindName("txtPacientesActivos") is TextBlock activosText)
+                        activosText.Text = pacientesActivos.ToString();
+                    
+                    if (this.FindName("txtPacientesMujeres") is TextBlock mujeresText)
+                        mujeresText.Text = pacientesMujeres.ToString();
+                    
+                    if (this.FindName("txtConDonaciones") is TextBlock donacionesText)
+                        donacionesText.Text = pacientesConDonaciones.ToString();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error updating stats UI: {ex.Message}");
+                }
+            });
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignorar errores de estadísticas
+            System.Diagnostics.Debug.WriteLine($"Error updating statistics: {ex.Message}");
         }
-    }
-
-    private void ActualizarListaFiltrada(string searchText = "")
-    {
-        PacientesFiltrados.Clear();
-        
-        var pacientesFiltrados = string.IsNullOrWhiteSpace(searchText)
-            ? Pacientes
-            : Pacientes.Where(p =>
-                p.nombre.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
-                p.cedula.ToString().Contains(searchText) ||
-                (p.telefono != null && p.telefono.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
-                (p.celular != null && p.celular.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
-                p.nrecord.ToString().Contains(searchText) ||
-                (!string.IsNullOrEmpty(p.observaciones) && p.observaciones.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
-                (!string.IsNullOrEmpty(p.sexo) && p.sexo.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
-                (!string.IsNullOrEmpty(p.area) && p.area.Contains(searchText, StringComparison.OrdinalIgnoreCase)));
-
-        foreach (var paciente in pacientesFiltrados)
-        {
-            PacientesFiltrados.Add(paciente);
-        }
-
-        PacientesListView.ItemsSource = PacientesFiltrados;
     }
 
     private void SearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
     {
         if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
         {
-            ActualizarListaFiltrada(sender.Text);
+            _searchDelayTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+            _currentSearchTerm = sender.Text?.Trim() ?? "";
+            _searchDelayTimer?.Change(500, Timeout.Infinite);
         }
+    }
+
+    // Eventos de paginación
+    private async void BtnFirstPage_Click(object sender, RoutedEventArgs e)
+    {
+        System.Diagnostics.Debug.WriteLine($"\n[PACIENTES-BTN] BtnFirstPage_Click - HasPreviousPage: {HasPreviousPage}, IsLoading: {IsLoading}");
+        if (HasPreviousPage && !IsLoading)
+        {
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-BTN] Navegando a página 1 desde página {CurrentPage}");
+            CurrentPage = 1;
+            await LoadPageAsync(CurrentPage);
+        }
+        else
+        {
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-BTN] Navegación bloqueada");
+        }
+    }
+
+    private async void BtnPreviousPage_Click(object sender, RoutedEventArgs e)
+    {
+        System.Diagnostics.Debug.WriteLine($"\n[PACIENTES-BTN] BtnPreviousPage_Click - HasPreviousPage: {HasPreviousPage}, IsLoading: {IsLoading}");
+        if (HasPreviousPage && !IsLoading)
+        {
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-BTN] Navegando a página {CurrentPage - 1} desde página {CurrentPage}");
+            CurrentPage--;
+            await LoadPageAsync(CurrentPage);
+        }
+        else
+        {
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-BTN] Navegación bloqueada");
+        }
+    }
+
+    private async void BtnNextPage_Click(object sender, RoutedEventArgs e)
+    {
+        System.Diagnostics.Debug.WriteLine($"\n[PACIENTES-BTN] BtnNextPage_Click - CurrentPage: {CurrentPage}, TotalPages: {TotalPages}, HasNextPage: {HasNextPage}, IsLoading: {IsLoading}");
+        if (HasNextPage && !IsLoading)
+        {
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-BTN] Navegando a página {CurrentPage + 1} desde página {CurrentPage}");
+            CurrentPage++;
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-BTN] CurrentPage actualizado a: {CurrentPage}");
+            await LoadPageAsync(CurrentPage);
+        }
+        else
+        {
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-BTN] Navegación bloqueada - HasNextPage: {HasNextPage}, IsLoading: {IsLoading}");
+        }
+    }
+
+    private async void BtnLastPage_Click(object sender, RoutedEventArgs e)
+    {
+        System.Diagnostics.Debug.WriteLine($"\n[PACIENTES-BTN] BtnLastPage_Click - HasNextPage: {HasNextPage}, IsLoading: {IsLoading}");
+        if (HasNextPage && !IsLoading)
+        {
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-BTN] Navegando a página {TotalPages} desde página {CurrentPage}");
+            CurrentPage = TotalPages;
+            await LoadPageAsync(CurrentPage);
+        }
+        else
+        {
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-BTN] Navegación bloqueada");
+        }
+    }
+
+    private async void BtnActualizar_Click(object sender, RoutedEventArgs e)
+    {
+        // Limpiar cache y recargar
+        _cacheService.InvalidateCache("pacientes");
+        await LoadPageAsync(CurrentPage);
     }
 
     private async void BtnNuevoPaciente_Click(object sender, RoutedEventArgs e)
     {
-        var resultado = await MostrarDialogoPaciente(null);
-        if (resultado != null)
+        try
         {
-            try
+            // Crear y mostrar el diálogo
+            var nuevoPaciente = await MostrarDialogoPaciente(null);
+            
+            if (nuevoPaciente != null)
             {
-                _context.Pacientes.Add(resultado);
-                await _context.SaveChangesAsync();
-
-                await CargarPacientesAsync();
-                await ShowInfoDialog("Éxito", "Paciente agregado correctamente");
-            }
-            catch (Exception ex)
-            {
-                await ShowInfoDialog("Error", $"Error al guardar: {ex.Message}");
+                // Guardar en la base de datos
+                await GuardarPacienteEnBaseDatos(nuevoPaciente);
+                
+                // Actualizar la interfaz
+                await ActualizarInterfazDespuesDeGuardar(nuevoPaciente);
             }
         }
+        catch (Exception ex)
+        {
+            await ShowInfoDialog("Error", $"Error al crear paciente: {ex.Message}");
+        }
+    }
+
+    private async Task GuardarPacienteEnBaseDatos(Paciente paciente)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        using var context = scope.ServiceProvider.GetRequiredService<RamaFemeninaContext>();
+        
+        context.Pacientes.Add(paciente);
+        await context.SaveChangesAsync();
+    }
+
+    private async Task ActualizarInterfazDespuesDeGuardar(Paciente paciente)
+    {
+        // Invalidar caché y recargar datos
+        _cacheService.InvalidateCache("pacientes");
+        
+        // Usar DispatcherQueue para asegurar que estamos en UI thread
+        await DispatcherQueue.EnqueueAsync(async () =>
+        {
+            await LoadPageAsync(CurrentPage);
+            
+            // Pequeño delay para asegurar que el diálogo anterior se cerró completamente
+            await Task.Delay(100);
+            
+            // Mostrar mensaje de éxito
+            await ShowInfoDialog("Éxito", 
+                $"Paciente registrado correctamente.\n\n" +
+                $"Nombre: {paciente.nombre}\n" +
+                $"Cédula: {paciente.cedula}");
+        });
     }
 
     private async void BtnEditarPaciente_Click(object sender, RoutedEventArgs e)
     {
-        var pacienteSeleccionado = PacientesListView.SelectedItem as Paciente;
-        if (pacienteSeleccionado == null)
+        try
         {
-            await ShowInfoDialog("Error", "Debe seleccionar un paciente");
-            return;
-        }
-
-        var resultado = await MostrarDialogoPaciente(pacienteSeleccionado);
-        if (resultado != null)
-        {
-            try
+            // Prefer the DataContext from the clicked button (inline actions don't always change ListView selection)
+            var pacienteSeleccionado = (sender as Button)?.DataContext as Paciente ?? PacientesListView.SelectedItem as Paciente;
+            if (pacienteSeleccionado == null)
             {
-                var paciente = await _context.Pacientes.FindAsync(pacienteSeleccionado.cedula);
-                if (paciente != null)
-                {
-                    paciente.nombre = resultado.nombre;
-                    paciente.telefono = resultado.telefono;
-                    paciente.celular = resultado.celular;
-                    paciente.nrecord = resultado.nrecord;
-                    paciente.sexo = resultado.sexo;
-                    paciente.area = resultado.area;
-                    paciente.observaciones = resultado.observaciones;
-
-                    await _context.SaveChangesAsync();
-                    await CargarPacientesAsync();
-                    await ShowInfoDialog("Éxito", "Paciente actualizado correctamente");
-                }
+                await ShowInfoDialog("Error", "Debe seleccionar un paciente");
+                return;
             }
-            catch (Exception ex)
+
+            // Mostrar formulario con datos existentes
+            var pacienteEditado = await MostrarDialogoPaciente(pacienteSeleccionado);
+            
+            if (pacienteEditado != null)
             {
-                await ShowInfoDialog("Error", $"Error al actualizar: {ex.Message}");
+                // Actualizar en la base de datos
+                await ActualizarPacienteEnBaseDatos(pacienteSeleccionado.idpaciente, pacienteEditado);
+                
+                // Actualizar la interfaz
+                await ActualizarInterfazDespuesDeActualizar(pacienteEditado);
             }
         }
+        catch (Exception ex)
+        {
+            await ShowInfoDialog("Error", $"Error al editar paciente: {ex.Message}");
+        }
+    }
+
+    private async Task ActualizarPacienteEnBaseDatos(int idPaciente, Paciente datosNuevos)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        using var context = scope.ServiceProvider.GetRequiredService<RamaFemeninaContext>();
+
+        // Cargar entidad existente (trackeada)
+        var pacienteExistente = await context.Pacientes.FirstOrDefaultAsync(p => p.idpaciente == idPaciente);
+        if (pacienteExistente == null)
+        {
+            throw new InvalidOperationException("El paciente ya no existe en la base de datos");
+        }
+
+        // Aplicar nuevos valores a la entidad trackeada
+        pacienteExistente.nombre = datosNuevos.nombre.Trim();
+        pacienteExistente.cedula = datosNuevos.cedula.Trim();
+        pacienteExistente.telefono = datosNuevos.telefono?.Trim();
+        pacienteExistente.celular = datosNuevos.celular?.Trim();
+        pacienteExistente.estado = datosNuevos.estado.Trim();
+        pacienteExistente.nrecord = datosNuevos.nrecord?.Trim();
+        pacienteExistente.observaciones = datosNuevos.observaciones?.Trim();
+        pacienteExistente.sexo = datosNuevos.sexo.Trim();
+        pacienteExistente.area = datosNuevos.area?.Trim();
+
+        // Marcar propiedades como modificadas explícitamente
+        var entry = context.Entry(pacienteExistente);
+        entry.Property(e => e.nombre).IsModified = true;
+        entry.Property(e => e.cedula).IsModified = true;
+        entry.Property(e => e.telefono).IsModified = true;
+        entry.Property(e => e.celular).IsModified = true;
+        entry.Property(e => e.estado).IsModified = true;
+        entry.Property(e => e.nrecord).IsModified = true;
+        entry.Property(e => e.observaciones).IsModified = true;
+        entry.Property(e => e.sexo).IsModified = true;
+        entry.Property(e => e.area).IsModified = true;
+
+        // Guardar cambios y validar resultado
+        var affected = await context.SaveChangesAsync().ConfigureAwait(false);
+        if (affected == 0)
+        {
+            // Forzar actualización si por alguna razón no se detectaron cambios
+            context.Update(pacienteExistente);
+            affected = await context.SaveChangesAsync().ConfigureAwait(false);
+        }
+
+        // Invalidar caché para que la UI no muestre datos viejos
+        _cacheService.InvalidateCache("pacientes");
+    }
+
+    private async Task ActualizarInterfazDespuesDeActualizar(Paciente paciente)
+    {
+        // Invalidar caché y recargar datos
+        _cacheService.InvalidateCache("pacientes");
+        
+        // Usar DispatcherQueue para asegurar que estamos en UI thread
+        await DispatcherQueue.EnqueueAsync(async () =>
+        {
+            await LoadPageAsync(CurrentPage);
+            
+            // Pequeño delay para asegurar que el diálogo anterior se cerró completamente
+            await Task.Delay(100);
+            
+            // Mostrar mensaje de éxito
+            await ShowInfoDialog("Éxito", 
+                $"El paciente ha sido actualizado exitosamente.\n\n" +
+                $"Nombre: {paciente.nombre}\n" +
+                $"Cédula: {paciente.cedula}");
+        });
     }
 
     private async void BtnEliminarPaciente_Click(object sender, RoutedEventArgs e)
     {
-        var pacienteSeleccionado = PacientesListView.SelectedItem as Paciente;
-        if (pacienteSeleccionado == null)
+        try
         {
-            await ShowInfoDialog("Error", "Debe seleccionar un paciente");
-            return;
-        }
+            // Validar XamlRoot
+            if (this.XamlRoot == null)
+            {
+                System.Diagnostics.Debug.WriteLine("[BTN-ELIMINAR] ERROR: XamlRoot es null");
+                return;
+            }
 
-        var donacionesAsociadas = await _context.Donaciones
-            .Where(d => d.idPaciente == pacienteSeleccionado.cedula)
-            .CountAsync();
+            // Prefer the DataContext from the clicked button (inline actions don't always change ListView selection)
+            var pacienteSeleccionado = (sender as Button)?.DataContext as Paciente ?? PacientesListView?.SelectedItem as Paciente;
+            if (pacienteSeleccionado == null)
+            {
+                await ShowInfoDialog("Error", "Debe seleccionar un paciente");
+                return;
+            }
 
-        var mensaje = $"¿Está seguro que desea eliminar este paciente?\n\nPaciente: {pacienteSeleccionado.nombre}\nCédula: {pacienteSeleccionado.cedula}";
-        
-        if (donacionesAsociadas > 0)
-        {
-            mensaje += $"\n\n?? ADVERTENCIA: Este paciente tiene {donacionesAsociadas} donación(es) registrada(s).\nLas donaciones asociadas también serán eliminadas.";
-        }
-        
-        mensaje += "\n\nEsta acción no se puede deshacer.";
+            var confirmDialog = new ContentDialog
+            {
+                Title = "Confirmar Eliminación",
+                Content = $"¿Está seguro que desea eliminar al paciente?\n\n" +
+                          $"ID: {pacienteSeleccionado.idpaciente}\n" +
+                          $"Nombre: {pacienteSeleccionado.nombre}\n" +
+                          $"Cédula: {pacienteSeleccionado.cedula}\n\n" +
+                          $"Esta acción no se puede deshacer.",
+                PrimaryButtonText = "Eliminar",
+                CloseButtonText = "Cancelar",
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = this.XamlRoot
+            };
 
-        var confirmDialog = new ContentDialog
-        {
-            Title = "Confirmar Eliminación",
-            Content = mensaje,
-            PrimaryButtonText = "Eliminar",
-            CloseButtonText = "Cancelar",
-            DefaultButton = ContentDialogButton.Close,
-            XamlRoot = this.XamlRoot
-        };
-
-        var result = await confirmDialog.ShowAsync();
-
-        if (result == ContentDialogResult.Primary)
-        {
+            ContentDialogResult result;
             try
             {
-                var paciente = await _context.Pacientes.FindAsync(pacienteSeleccionado.cedula);
-                if (paciente != null)
+                result = await confirmDialog.ShowAsync();
+            }
+            catch (System.Runtime.InteropServices.COMException comEx)
+            {
+                System.Diagnostics.Debug.WriteLine($"[BTN-ELIMINAR] COM ERROR al mostrar diálogo: {comEx.Message}");
+                await ShowInfoDialog("Error", "Error al mostrar el diálogo de confirmación.");
+                return;
+            }
+
+            if (result == ContentDialogResult.Primary)
+            {
+                try
                 {
-                    _context.Pacientes.Remove(paciente);
-                    await _context.SaveChangesAsync();
-                    await CargarPacientesAsync();
+                    using var scope = _serviceProvider.CreateScope();
+                    using var context = scope.ServiceProvider.GetRequiredService<RamaFemeninaContext>();
 
-                    var mensajeExito = donacionesAsociadas > 0
-                        ? $"Paciente eliminado correctamente.\nSe eliminaron {donacionesAsociadas} donación(es) asociada(s)."
-                        : "Paciente eliminado correctamente.";
+                    var paciente = await context.Pacientes.FindAsync(pacienteSeleccionado.idpaciente).ConfigureAwait(false);
+                    if (paciente != null)
+                    {
+                        context.Pacientes.Remove(paciente);
+                        await context.SaveChangesAsync().ConfigureAwait(false);
 
-                    await ShowInfoDialog("Éxito", mensajeExito);
+                        _cacheService.InvalidateCache("pacientes");
+                        
+                        await DispatcherQueue.EnqueueAsync(async () =>
+                        {
+                            await LoadPageAsync(CurrentPage);
+                            
+                            // Pequeño delay para evitar COMException
+                            await Task.Delay(100);
+                            
+                            await ShowInfoDialog("Éxito", "Paciente eliminado correctamente");
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[BTN-ELIMINAR] Error al eliminar: {ex.Message}");
+                    await DispatcherQueue.EnqueueAsync(async () =>
+                    {
+                        await ShowInfoDialog("Error", $"Error al eliminar paciente: {ex.Message}");
+                    });
                 }
             }
-            catch (Exception ex)
+        }
+        catch (System.Runtime.InteropServices.COMException comEx)
+        {
+            System.Diagnostics.Debug.WriteLine($"[BTN-ELIMINAR] COM ERROR: {comEx.Message}");
+            System.Diagnostics.Debug.WriteLine($"[BTN-ELIMINAR] HResult: {comEx.HResult:X}");
+            await DispatcherQueue.EnqueueAsync(async () =>
             {
-                await ShowInfoDialog("Error", $"Error al eliminar: {ex.Message}");
-            }
+                await ShowInfoDialog("Error", "Error al procesar la eliminación.");
+            });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[BTN-ELIMINAR] ERROR: {ex.GetType().Name} - {ex.Message}");
+            await DispatcherQueue.EnqueueAsync(async () =>
+            {
+                await ShowInfoDialog("Error", $"Error inesperado: {ex.Message}");
+            });
         }
     }
 
@@ -305,7 +683,7 @@ public sealed partial class PacientesPage : Page, INotifyPropertyChanged
         var pacienteSeleccionado = PacientesListView.SelectedItem as Paciente;
         if (pacienteSeleccionado == null)
         {
-            await ShowInfoDialog("Error", "Debe seleccionar un paciente");
+            await ShowInfoDialog("Error", "Debe seleccionar un paciente para registrar la donación");
             return;
         }
 
@@ -314,92 +692,369 @@ public sealed partial class PacientesPage : Page, INotifyPropertyChanged
         {
             try
             {
-                _context.Donaciones.Add(resultado);
-                await _context.SaveChangesAsync();
-                await ShowInfoDialog("Éxito", $"Donación registrada correctamente.\nID Donación: {resultado.idDonacion}\nTotal: ${resultado.total:N2}");
+                // Usar una instancia separada del contexto
+                using var scope = _serviceProvider.CreateScope();
+                using var context = scope.ServiceProvider.GetRequiredService<RamaFemeninaContext>();
+                
+                context.Donaciones.Add(resultado);
+                await context.SaveChangesAsync().ConfigureAwait(false);
+                
+                // Invalidar cache y recargar
+                _cacheService.InvalidateCache("donaciones");
+                await ShowInfoDialog("Éxito", $"Donación registrada correctamente.\nPaciente: {pacienteSeleccionado.nombre}\nMonto: RD$ {resultado.valor:N2}");
             }
             catch (Exception ex)
             {
-                await ShowInfoDialog("Error", $"Error al guardar donación: {ex.Message}");
+                await ShowInfoDialog("Error", $"Error al registrar donación: {ex.Message}");
             }
+        }
+    }
+
+    private async void BtnVerDonaciones_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            // Obtener el paciente del DataContext del botón
+            var pacienteSeleccionado = (sender as Button)?.DataContext as Paciente;
+            if (pacienteSeleccionado == null)
+            {
+                await ShowInfoDialog("Error", "No se pudo obtener la información del paciente");
+                return;
+            }
+
+            // Mostrar diálogo con las donaciones del paciente
+            await MostrarDialogoDonacionesPaciente(pacienteSeleccionado);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[BTN-VER-DONACIONES] ERROR: {ex.Message}");
+            await ShowInfoDialog("Error", $"Error al cargar donaciones: {ex.Message}");
+        }
+    }
+
+    private async Task MostrarDialogoDonacionesPaciente(Paciente paciente)
+    {
+        if (this.XamlRoot == null)
+        {
+            System.Diagnostics.Debug.WriteLine("[VER-DONACIONES] XamlRoot es null");
+            return;
+        }
+
+        try
+        {
+            // Obtener las donaciones del paciente
+            using var scope = _serviceProvider.CreateScope();
+            using var context = scope.ServiceProvider.GetRequiredService<RamaFemeninaContext>();
+
+            var donaciones = await context.Donaciones
+                .Where(d => d.idPaciente == paciente.idpaciente)
+                .OrderByDescending(d => d.Fecha)
+                .ToListAsync();
+
+            // Crear el contenido del diálogo
+            var contentPanel = new StackPanel { Spacing = 16 };
+
+            // Información del paciente
+            var infoPanel = new StackPanel
+            {
+                Spacing = 8,
+                Padding = new Thickness(0, 0, 0, 16),
+                BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.LightGray),
+                BorderThickness = new Thickness(0, 0, 0, 1)
+            };
+
+            infoPanel.Children.Add(new TextBlock
+            {
+                Text = $"Paciente: {paciente.nombre}",
+                FontSize = 16,
+                FontWeight = Microsoft.UI.Text.FontWeights.Bold
+            });
+
+            infoPanel.Children.Add(new TextBlock
+            {
+                Text = $"Cédula: {paciente.cedula}",
+                FontSize = 12,
+                Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray)
+            });
+
+            contentPanel.Children.Add(infoPanel);
+
+            // Resumen de donaciones
+            if (donaciones.Any())
+            {
+                var totalDonado = donaciones.Sum(d => d.valor);
+                var totalSolicitado = donaciones.Sum(d => d.montoSolicitado);
+                var cantidadDonaciones = donaciones.Count;
+
+                var resumenPanel = new StackPanel
+                {
+                    Spacing = 12,
+                    Padding = new Thickness(16),
+                    Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                        Windows.UI.Color.FromArgb(20, 102, 126, 234)),
+                    CornerRadius = new CornerRadius(8),
+                    Margin = new Thickness(0, 0, 0, 16)
+                };
+
+                var gridResumen = new Grid
+                {
+                    ColumnSpacing = 16,
+                    RowSpacing = 8
+                };
+                gridResumen.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                gridResumen.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                gridResumen.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                gridResumen.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+                var cantidadStack = new StackPanel();
+                cantidadStack.Children.Add(new TextBlock
+                {
+                    Text = "Cantidad de Donaciones",
+                    FontSize = 11,
+                    Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray)
+                });
+                cantidadStack.Children.Add(new TextBlock
+                {
+                    Text = cantidadDonaciones.ToString(),
+                    FontSize = 20,
+                    FontWeight = Microsoft.UI.Text.FontWeights.Bold
+                });
+                Grid.SetColumn(cantidadStack, 0);
+                Grid.SetRow(cantidadStack, 0);
+
+                var totalStack = new StackPanel();
+                totalStack.Children.Add(new TextBlock
+                {
+                    Text = "Total Donado",
+                    FontSize = 11,
+                    Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray)
+                });
+                totalStack.Children.Add(new TextBlock
+                {
+                    Text = $"RD$ {totalDonado:N2}",
+                    FontSize = 20,
+                    FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+                    Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                        Windows.UI.Color.FromArgb(255, 16, 124, 16))
+                });
+                Grid.SetColumn(totalStack, 1);
+                Grid.SetRow(totalStack, 0);
+
+                var solicitadoStack = new StackPanel();
+                solicitadoStack.Children.Add(new TextBlock
+                {
+                    Text = "Total Solicitado",
+                    FontSize = 11,
+                    Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray)
+                });
+                solicitadoStack.Children.Add(new TextBlock
+                {
+                    Text = $"RD$ {totalSolicitado:N2}",
+                    FontSize = 20,
+                    FontWeight = Microsoft.UI.Text.FontWeights.Bold
+                });
+                Grid.SetColumn(solicitadoStack, 0);
+                Grid.SetRow(solicitadoStack, 1);
+
+                var diferenciaStack = new StackPanel();
+                var diferencia = totalDonado - totalSolicitado;
+                diferenciaStack.Children.Add(new TextBlock
+                {
+                    Text = "Diferencia",
+                    FontSize = 11,
+                    Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray)
+                });
+                diferenciaStack.Children.Add(new TextBlock
+                {
+                    Text = $"RD$ {diferencia:N2}",
+                    FontSize = 20,
+                    FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+                    Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                        diferencia >= 0
+                            ? Windows.UI.Color.FromArgb(255, 16, 124, 16)
+                            : Windows.UI.Color.FromArgb(255, 196, 43, 28))
+                });
+                Grid.SetColumn(diferenciaStack, 1);
+                Grid.SetRow(diferenciaStack, 1);
+
+                gridResumen.Children.Add(cantidadStack);
+                gridResumen.Children.Add(totalStack);
+                gridResumen.Children.Add(solicitadoStack);
+                gridResumen.Children.Add(diferenciaStack);
+
+                resumenPanel.Children.Add(gridResumen);
+                contentPanel.Children.Add(resumenPanel);
+
+                // Lista de donaciones
+                var listaDonaciones = new StackPanel { Spacing = 8 };
+
+                foreach (var donacion in donaciones.Take(10)) // Limitar a 10 más recientes
+                {
+                    var donacionBorder = new Border
+                    {
+                        Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                            Windows.UI.Color.FromArgb(10, 0, 0, 0)),
+                        CornerRadius = new CornerRadius(8),
+                        Padding = new Thickness(12),
+                        Margin = new Thickness(0, 0, 0, 4)
+                    };
+
+                    var donacionGrid = new Grid { ColumnSpacing = 12 };
+                    donacionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    donacionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    donacionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                    var fechaBadge = new Border
+                    {
+                        Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                            Windows.UI.Color.FromArgb(255, 102, 126, 234)),
+                        CornerRadius = new CornerRadius(6),
+                        Padding = new Thickness(8, 4, 8, 4)
+                    };
+                    fechaBadge.Child = new TextBlock
+                    {
+                        Text = donacion.Fecha.ToString("dd/MM/yyyy"),
+                        FontSize = 11,
+                        FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                        Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White)
+                    };
+                    Grid.SetColumn(fechaBadge, 0);
+
+                    var infoStack = new StackPanel { Spacing = 4 };
+                    if (!string.IsNullOrWhiteSpace(donacion.procedimiento))
+                    {
+                        infoStack.Children.Add(new TextBlock
+                        {
+                            Text = donacion.procedimiento,
+                            FontSize = 13,
+                            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+                        });
+                    }
+                    if (!string.IsNullOrWhiteSpace(donacion.observacion))
+                    {
+                        infoStack.Children.Add(new TextBlock
+                        {
+                            Text = donacion.observacion,
+                            FontSize = 11,
+                            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray),
+                            TextTrimming = TextTrimming.CharacterEllipsis
+                        });
+                    }
+                    Grid.SetColumn(infoStack, 1);
+
+                    var montoText = new TextBlock
+                    {
+                        Text = $"RD$ {donacion.valor:N2}",
+                        FontSize = 14,
+                        FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+                        Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                            Windows.UI.Color.FromArgb(255, 16, 124, 16)),
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    Grid.SetColumn(montoText, 2);
+
+                    donacionGrid.Children.Add(fechaBadge);
+                    donacionGrid.Children.Add(infoStack);
+                    donacionGrid.Children.Add(montoText);
+
+                    donacionBorder.Child = donacionGrid;
+                    listaDonaciones.Children.Add(donacionBorder);
+                }
+
+                if (donaciones.Count > 10)
+                {
+                    listaDonaciones.Children.Add(new TextBlock
+                    {
+                        Text = $"... y {donaciones.Count - 10} donaciones más",
+                        FontSize = 11,
+                        FontStyle = Windows.UI.Text.FontStyle.Italic,
+                        Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray),
+                        Margin = new Thickness(0, 8, 0, 0),
+                        HorizontalAlignment = HorizontalAlignment.Center
+                    });
+                }
+
+                contentPanel.Children.Add(listaDonaciones);
+            }
+            else
+            {
+                // Sin donaciones
+                var sinDonacionesPanel = new StackPanel
+                {
+                    Spacing = 12,
+                    Padding = new Thickness(40),
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+
+                sinDonacionesPanel.Children.Add(new FontIcon
+                {
+                    Glyph = "\uE8EC",
+                    FontSize = 48,
+                    Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.LightGray),
+                    HorizontalAlignment = HorizontalAlignment.Center
+                });
+
+                sinDonacionesPanel.Children.Add(new TextBlock
+                {
+                    Text = "Sin donaciones registradas",
+                    FontSize = 16,
+                    FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                });
+
+                sinDonacionesPanel.Children.Add(new TextBlock
+                {
+                    Text = "Este paciente aún no tiene donaciones asociadas",
+                    FontSize = 12,
+                    Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray),
+                    HorizontalAlignment = HorizontalAlignment.Center
+                });
+
+                contentPanel.Children.Add(sinDonacionesPanel);
+            }
+
+            var scrollViewer = new ScrollViewer
+            {
+                Content = contentPanel,
+                MaxHeight = 600,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+            };
+
+            var dialog = new ContentDialog
+            {
+                Title = "?? Historial de Donaciones",
+                Content = scrollViewer,
+                CloseButtonText = "Cerrar",
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = this.XamlRoot
+            };
+
+            await dialog.ShowAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[VER-DONACIONES] ERROR: {ex.Message}");
+            await ShowInfoDialog("Error", $"Error al cargar las donaciones: {ex.Message}");
         }
     }
 
     private async Task<Paciente> MostrarDialogoPaciente(Paciente pacienteExistente)
     {
+        // Dialogo con validación utilizando PrimaryButtonClick y deferral (patrón similar a ChequesPage)
+        if (this.XamlRoot == null)
+        {
+            System.Diagnostics.Debug.WriteLine("[PACIENTES] XamlRoot es null, no se puede mostrar diálogo");
+            return null;
+        }
+
         bool esEdicion = pacienteExistente != null;
-
-        // Crear grid principal
-        var mainGrid = new Grid
-        {
-            RowSpacing = 20
-        };
-        
-        mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Header
-        mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Formulario
-        mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Info
-
-        // Header con icono
-        var headerPanel = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 12,
-            Margin = new Thickness(0, 0, 0, 20)
-        };
-
-        var iconBorder = new Border
-        {
-            Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["PrimaryGradient"],
-            Width = 48,
-            Height = 48,
-            CornerRadius = new CornerRadius(12)
-        };
-
-        var iconContent = new FontIcon
-        {
-            Glyph = "\uE77B",
-            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White),
-            FontSize = 24
-        };
-        iconBorder.Child = iconContent;
-
-        var headerTextPanel = new StackPanel
-        {
-            VerticalAlignment = VerticalAlignment.Center
-        };
-
-        var titleText = new TextBlock
-        {
-            Text = esEdicion ? "Editar Paciente" : "Nuevo Paciente",
-            FontSize = 24,
-            FontWeight = Microsoft.UI.Text.FontWeights.Bold
-        };
-
-        var subtitleText = new TextBlock
-        {
-            Text = "Complete la información del paciente",
-            FontSize = 13,
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"]
-        };
-
-        headerTextPanel.Children.Add(titleText);
-        headerTextPanel.Children.Add(subtitleText);
-        headerPanel.Children.Add(iconBorder);
-        headerPanel.Children.Add(headerTextPanel);
-
-        Grid.SetRow(headerPanel, 0);
-        mainGrid.Children.Add(headerPanel);
-
-        // Formulario
-        var formPanel = new StackPanel { Spacing = 16 };
 
         var cedulaBox = new TextBox
         {
             Header = "Cédula *",
             PlaceholderText = "000-0000000-0",
             Text = pacienteExistente?.cedula ?? "",
-            IsEnabled = !esEdicion,
-            CornerRadius = new CornerRadius(8)
+            MaxLength = 50
         };
 
         var nombreBox = new TextBox
@@ -407,446 +1062,244 @@ public sealed partial class PacientesPage : Page, INotifyPropertyChanged
             Header = "Nombre Completo *",
             PlaceholderText = "Nombre y apellidos del paciente",
             Text = pacienteExistente?.nombre ?? "",
-            CornerRadius = new CornerRadius(8)
+            MaxLength = 50
         };
-
-        // Grid para teléfonos
-        var telefonosGrid = new Grid
-        {
-            ColumnSpacing = 16
-        };
-        telefonosGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        telefonosGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
         var telefonoBox = new TextBox
         {
-            Header = "Teléfono Fijo",
-            PlaceholderText = "809-555-0000",
+            Header = "Teléfono",
+            PlaceholderText = "809-000-0000",
             Text = pacienteExistente?.telefono ?? "",
-            CornerRadius = new CornerRadius(8)
+            MaxLength = 50
         };
-        Grid.SetColumn(telefonoBox, 0);
 
         var celularBox = new TextBox
         {
             Header = "Celular",
-            PlaceholderText = "809-555-0000",
+            PlaceholderText = "809-000-0000",
             Text = pacienteExistente?.celular ?? "",
-            CornerRadius = new CornerRadius(8)
+            MaxLength = 50
         };
-        Grid.SetColumn(celularBox, 1);
-
-        telefonosGrid.Children.Add(telefonoBox);
-        telefonosGrid.Children.Add(celularBox);
-
-        // Grid para registro y sexo
-        var registroSexoGrid = new Grid
-        {
-            ColumnSpacing = 16
-        };
-        registroSexoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        registroSexoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-        var nrecordBox = new TextBox
-        {
-            Header = "Número de Registro *",
-            PlaceholderText = "REG-0000",
-            Text = pacienteExistente?.nrecord ?? "",
-            CornerRadius = new CornerRadius(8)
-        };
-        Grid.SetColumn(nrecordBox, 0);
 
         var sexoCombo = new ComboBox
         {
-            Header = "Sexo *",
-            PlaceholderText = "Seleccione",
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            ItemsSource = new[] { "M", "F" },
-            SelectedItem = pacienteExistente?.sexo,
-            CornerRadius = new CornerRadius(8)
+            Header = "Sexo",
+            MinWidth = 150
         };
-        Grid.SetColumn(sexoCombo, 1);
+        sexoCombo.Items.Add(new ComboBoxItem { Content = "Femenino", Tag = "Femenino" });
+        sexoCombo.Items.Add(new ComboBoxItem { Content = "Masculino", Tag = "Masculino" });
+        if (pacienteExistente?.sexo != null)
+        {
+            for (int i = 0; i < sexoCombo.Items.Count; i++)
+            {
+                if ((sexoCombo.Items[i] as ComboBoxItem)?.Tag?.ToString() == pacienteExistente.sexo)
+                {
+                    sexoCombo.SelectedIndex = i;
+                    break;
+                }
+            }
+        }
 
-        registroSexoGrid.Children.Add(nrecordBox);
-        registroSexoGrid.Children.Add(sexoCombo);
+        var estadoCombo = new ComboBox
+        {
+            Header = "Estado",
+            MinWidth = 150
+        };
+        estadoCombo.Items.Add(new ComboBoxItem { Content = "Activo", Tag = "Activo" });
+        estadoCombo.Items.Add(new ComboBoxItem { Content = "Inactivo", Tag = "Inactivo" });
+        estadoCombo.SelectedIndex = pacienteExistente?.estado == "Inactivo" ? 1 : 0;
+
+        var nrecordBox = new TextBox
+        {
+            Header = "No. Record",
+            PlaceholderText = "Número de record médico",
+            Text = pacienteExistente?.nrecord ?? "",
+            MaxLength = 50
+        };
 
         var areaBox = new TextBox
         {
-            Header = "Área Médica",
-            PlaceholderText = "Ej: Cardiología, Pediatría, etc.",
-            Text = pacienteExistente?.area ?? "",
-            CornerRadius = new CornerRadius(8)
+            Header = "Área *",
+            PlaceholderText = "Área o departamento",
+            Text = pacienteExistente?.area ?? "General",
+            MaxLength = 50
         };
 
         var observacionesBox = new TextBox
         {
-            Header = "Observaciones Médicas",
-            PlaceholderText = "Notas adicionales, alergias, condiciones especiales...",
+            Header = "Observaciones",
+            PlaceholderText = "Observaciones médicas o comentarios",
             AcceptsReturn = true,
             TextWrapping = TextWrapping.Wrap,
-            Height = 90,
+            Height = 80,
             Text = pacienteExistente?.observaciones ?? "",
-            CornerRadius = new CornerRadius(8)
+            MaxLength = 300
         };
 
-        formPanel.Children.Add(cedulaBox);
-        formPanel.Children.Add(nombreBox);
-        formPanel.Children.Add(telefonosGrid);
-        formPanel.Children.Add(registroSexoGrid);
-        formPanel.Children.Add(areaBox);
-        formPanel.Children.Add(observacionesBox);
-
-        Grid.SetRow(formPanel, 1);
-        mainGrid.Children.Add(formPanel);
-
-        // Info box
-        var infoBorder = new Border
+        var formPanel = new StackPanel
         {
-            Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorAttentionBackgroundBrush"],
-            CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(12),
-            Margin = new Thickness(0, 8, 0, 0)
+            Spacing = 16,
+            Children =
+            {
+                cedulaBox,
+                nombreBox,
+                telefonoBox,
+                celularBox,
+                sexoCombo,
+                estadoCombo,
+                areaBox,
+                nrecordBox,
+                observacionesBox
+            }
         };
-
-        var infoPanel = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8
-        };
-
-        var infoIcon = new FontIcon
-        {
-            Glyph = "\uE946",
-            FontSize = 16,
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorAttentionBrush"]
-        };
-
-        var infoText = new TextBlock
-        {
-            Text = "* Los campos marcados son obligatorios para el registro",
-            FontSize = 12,
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"]
-        };
-
-        infoPanel.Children.Add(infoIcon);
-        infoPanel.Children.Add(infoText);
-        infoBorder.Child = infoPanel;
-
-        Grid.SetRow(infoBorder, 2);
-        mainGrid.Children.Add(infoBorder);
 
         var scrollViewer = new ScrollViewer
         {
-            Content = mainGrid,
+            Content = formPanel,
             MaxHeight = 600,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            Padding = new Thickness(2)
+            Padding = new Thickness(4)
         };
 
         var dialog = new ContentDialog
         {
+            Title = esEdicion ? "Editar Paciente" : "Nuevo Paciente",
             Content = scrollViewer,
-            PrimaryButtonText = "?? Guardar",
-            CloseButtonText = "? Cancelar",
+            PrimaryButtonText = esEdicion ? "Actualizar" : "Guardar",
+            CloseButtonText = "Cancelar",
             DefaultButton = ContentDialogButton.Primary,
-            XamlRoot = this.XamlRoot,
-            Style = (Style)Application.Current.Resources["DefaultContentDialogStyle"]
+            XamlRoot = this.XamlRoot
         };
 
-        var result = await dialog.ShowAsync();
+        Paciente pacienteResultado = null;
+        string mensajeError = null;
 
-        if (result == ContentDialogResult.Primary)
+        dialog.PrimaryButtonClick += (s, args) =>
         {
-            // Validaciones
-            if (string.IsNullOrWhiteSpace(nombreBox.Text))
+            var deferral = args.GetDeferral();
+            try
             {
-                await ShowInfoDialog("?? Validación", "El nombre del paciente es obligatorio.");
-                return await MostrarDialogoPaciente(pacienteExistente);
-            }
+                // Validación
+                if (string.IsNullOrWhiteSpace(cedulaBox.Text))
+                {
+                    mensajeError = "La cédula es obligatoria";
+                    args.Cancel = true;
+                    return;
+                }
+                if (string.IsNullOrWhiteSpace(nombreBox.Text))
+                {
+                    mensajeError = "El nombre es obligatorio";
+                    args.Cancel = true;
+                    return;
+                }
 
-            if (string.IsNullOrWhiteSpace(cedulaBox.Text))
-            {
-                await ShowInfoDialog("?? Validación", "La cédula del paciente es obligatoria.");
-                return await MostrarDialogoPaciente(pacienteExistente);
+                pacienteResultado = new Paciente
+                {
+                    cedula = cedulaBox.Text.Trim(),
+                    nombre = nombreBox.Text.Trim(),
+                    telefono = telefonoBox.Text.Trim(),
+                    celular = celularBox.Text.Trim(),
+                    sexo = (sexoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "Femenino",
+                    estado = (estadoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "Activo",
+                    area = areaBox.Text.Trim(),
+                    nrecord = nrecordBox.Text.Trim(),
+                    observaciones = observacionesBox.Text.Trim()
+                };
             }
-
-            if (!esEdicion && await _context.Pacientes.AnyAsync(p => p.cedula == cedulaBox.Text.Trim()))
+            catch (Exception ex)
             {
-                await ShowInfoDialog("?? Duplicado", "Ya existe un paciente registrado con esta cédula.\n\nPor favor, verifique el número ingresado.");
-                return await MostrarDialogoPaciente(pacienteExistente);
+                mensajeError = ex.Message;
+                args.Cancel = true;
             }
-
-            if (string.IsNullOrWhiteSpace(nrecordBox.Text))
+            finally
             {
-                await ShowInfoDialog("?? Validación", "El número de registro es obligatorio.");
-                return await MostrarDialogoPaciente(pacienteExistente);
+                deferral.Complete();
             }
+        };
 
-            if (sexoCombo.SelectedItem == null)
-            {
-                await ShowInfoDialog("?? Validación", "Debe seleccionar el sexo del paciente.");
-                return await MostrarDialogoPaciente(pacienteExistente);
-            }
-
-            return new Paciente
-            {
-                cedula = cedulaBox.Text.Trim(),
-                nombre = nombreBox.Text.Trim(),
-                telefono = string.IsNullOrWhiteSpace(telefonoBox.Text) ? "" : telefonoBox.Text.Trim(),
-                celular = string.IsNullOrWhiteSpace(celularBox.Text) ? "" : celularBox.Text.Trim(),
-                nrecord = nrecordBox.Text.Trim(),
-                sexo = sexoCombo.SelectedItem.ToString(),
-                area = string.IsNullOrWhiteSpace(areaBox.Text) ? "" : areaBox.Text.Trim(),
-                observaciones = string.IsNullOrWhiteSpace(observacionesBox.Text) ? "" : observacionesBox.Text.Trim()
-            };
+        ContentDialogResult result;
+        try
+        {
+            result = await dialog.ShowAsync();
+        }
+        catch (System.Runtime.InteropServices.COMException comEx)
+        {
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES] COM ERROR al mostrar diálogo: {comEx.Message}");
+            return null;
         }
 
-        return null;
+        if (!string.IsNullOrEmpty(mensajeError))
+        {
+            // Mostrar error después de cerrar el diálogo para evitar COMException por diálogos anidados
+            await ShowInfoDialog("Error", mensajeError);
+        }
+
+        return result == ContentDialogResult.Primary ? pacienteResultado : null;
     }
 
     private async Task<Donaciones> MostrarDialogoDonacion(Paciente paciente)
     {
-        // Crear grid principal
-        var mainGrid = new Grid
+        // Implementación básica del diálogo de donación
+        var valorBox = new NumberBox
         {
-            RowSpacing = 20
-        };
-        
-        mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Header
-        mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Info paciente
-        mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Formulario
-        mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Alert
-
-        // Header con icono
-        var headerPanel = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 12,
-            Margin = new Thickness(0, 0, 0, 16)
+            Header = "Monto Donado (RD$) *",
+            PlaceholderText = "0.00",
+            SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Hidden,
+            Minimum = 0
         };
 
-        var iconBorder = new Border
+        var montoSolicitadoBox = new NumberBox
         {
-            Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SuccessGradient"],
-            Width = 48,
-            Height = 48,
-            CornerRadius = new CornerRadius(12)
-        };
-
-        var iconContent = new FontIcon
-        {
-            Glyph = "\uE8EC",
-            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White),
-            FontSize = 24
-        };
-        iconBorder.Child = iconContent;
-
-        var headerTextPanel = new StackPanel
-        {
-            VerticalAlignment = VerticalAlignment.Center
-        };
-
-        var titleText = new TextBlock
-        {
-            Text = "Registrar Donación",
-            FontSize = 24,
-            FontWeight = Microsoft.UI.Text.FontWeights.Bold
-        };
-
-        var subtitleText = new TextBlock
-        {
-            Text = "Registre los detalles de la donación médica",
-            FontSize = 13,
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"]
-        };
-
-        headerTextPanel.Children.Add(titleText);
-        headerTextPanel.Children.Add(subtitleText);
-        headerPanel.Children.Add(iconBorder);
-        headerPanel.Children.Add(headerTextPanel);
-
-        Grid.SetRow(headerPanel, 0);
-        mainGrid.Children.Add(headerPanel);
-
-        // Info del paciente
-        var pacienteInfoBorder = new Border
-        {
-            Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
-            BorderBrush = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"],
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(16)
-        };
-
-        var pacienteInfoStack = new StackPanel { Spacing = 4 };
-        
-        var pacienteLabel = new TextBlock
-        {
-            Text = "Paciente:",
-            FontSize = 11,
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
-            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
-        };
-
-        var pacienteNombre = new TextBlock
-        {
-            Text = paciente.nombre,
-            FontSize = 16,
-            FontWeight = Microsoft.UI.Text.FontWeights.Bold
-        };
-
-        var pacienteCedula = new TextBlock
-        {
-            Text = $"Cédula: {paciente.cedula}",
-            FontSize = 12,
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"]
-        };
-
-        pacienteInfoStack.Children.Add(pacienteLabel);
-        pacienteInfoStack.Children.Add(pacienteNombre);
-        pacienteInfoStack.Children.Add(pacienteCedula);
-        pacienteInfoBorder.Child = pacienteInfoStack;
-
-        Grid.SetRow(pacienteInfoBorder, 1);
-        mainGrid.Children.Add(pacienteInfoBorder);
-
-        // Formulario
-        var formPanel = new StackPanel { Spacing = 16 };
-
-        var fechaPicker = new CalendarDatePicker
-        {
-            Header = "Fecha de la Donación *",
-            Date = DateTimeOffset.Now,
-            MaxDate = DateTimeOffset.Now,
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            CornerRadius = new CornerRadius(8)
+            Header = "Monto Solicitado (RD$)",
+            PlaceholderText = "0.00",
+            SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Hidden,
+            Minimum = 0
         };
 
         var procedimientoBox = new TextBox
         {
-            Header = "Procedimiento Médico *",
-            PlaceholderText = "Descripción detallada del procedimiento o tratamiento",
-            AcceptsReturn = true,
-            TextWrapping = TextWrapping.Wrap,
-            Height = 80,
-            CornerRadius = new CornerRadius(8)
-        };
-
-        // Grid para montos
-        var montosGrid = new Grid
-        {
-            ColumnSpacing = 16
-        };
-        montosGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        montosGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-        var montoSolicitadoBox = new NumberBox
-        {
-            Header = "Monto Solicitado (RD$) *",
-            PlaceholderText = "0.00",
-            SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Hidden,
-            Minimum = 0,
-            CornerRadius = new CornerRadius(8)
-        };
-        Grid.SetColumn(montoSolicitadoBox, 0);
-
-        var valorDonacionBox = new NumberBox
-        {
-            Header = "Valor Donación (RD$) *",
-            PlaceholderText = "0.00",
-            SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Hidden,
-            Minimum = 0,
-            CornerRadius = new CornerRadius(8)
-        };
-        Grid.SetColumn(valorDonacionBox, 1);
-
-        montosGrid.Children.Add(montoSolicitadoBox);
-        montosGrid.Children.Add(valorDonacionBox);
-
-        var totalBox = new NumberBox
-        {
-            Header = "Total Acumulado (RD$)",
-            PlaceholderText = "0.00",
-            SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Hidden,
-            Minimum = 0,
-            IsEnabled = false,
-            CornerRadius = new CornerRadius(8)
-        };
-
-        // Actualizar total automáticamente
-        valorDonacionBox.ValueChanged += (s, args) =>
-        {
-            totalBox.Value = valorDonacionBox.Value;
+            Header = "Procedimiento",
+            PlaceholderText = "Descripción del procedimiento médico",
+            MaxLength = 50
         };
 
         var observacionBox = new TextBox
         {
             Header = "Observaciones",
-            PlaceholderText = "Notas adicionales sobre la donación",
+            PlaceholderText = "Observaciones sobre la donación",
             AcceptsReturn = true,
             TextWrapping = TextWrapping.Wrap,
             Height = 80,
-            CornerRadius = new CornerRadius(8)
+            MaxLength = 300
         };
 
-        formPanel.Children.Add(fechaPicker);
-        formPanel.Children.Add(procedimientoBox);
-        formPanel.Children.Add(montosGrid);
-        formPanel.Children.Add(totalBox);
-        formPanel.Children.Add(observacionBox);
-
-        Grid.SetRow(formPanel, 2);
-        mainGrid.Children.Add(formPanel);
-
-        // Alert box
-        var alertBorder = new Border
+        var infoPanel = new StackPanel
         {
-            Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorSuccessBackgroundBrush"],
-            CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(12),
-            Margin = new Thickness(0, 8, 0, 0)
+            Spacing = 8,
+            Margin = new Thickness(0, 0, 0, 16)
         };
+        infoPanel.Children.Add(new TextBlock { Text = $"Paciente: {paciente.nombre}", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+        infoPanel.Children.Add(new TextBlock { Text = $"Cédula: {paciente.cedula}", FontSize = 12, Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray) });
 
-        var alertPanel = new StackPanel
+        var formPanel = new StackPanel
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8
-        };
-
-        var alertIcon = new FontIcon
-        {
-            Glyph = "\uE946",
-            FontSize = 16,
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorSuccessBrush"]
-        };
-
-        var alertText = new TextBlock
-        {
-            Text = "* Complete todos los campos obligatorios para registrar la donación",
-            FontSize = 12,
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"]
-        };
-
-        alertPanel.Children.Add(alertIcon);
-        alertPanel.Children.Add(alertText);
-        alertBorder.Child = alertPanel;
-
-        Grid.SetRow(alertBorder, 3);
-        mainGrid.Children.Add(alertBorder);
-
-        var scrollViewer = new ScrollViewer
-        {
-            Content = mainGrid,
-            MaxHeight = 600,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            Padding = new Thickness(2)
+            Spacing = 16,
+            Children =
+            {
+                infoPanel,
+                valorBox,
+                montoSolicitadoBox,
+                procedimientoBox,
+                observacionBox
+            }
         };
 
         var dialog = new ContentDialog
         {
-            Content = scrollViewer,
-            PrimaryButtonText = "?? Registrar Donación",
-            CloseButtonText = "? Cancelar",
+            Title = "Registrar Donación",
+            Content = formPanel,
+            PrimaryButtonText = "Registrar",
+            CloseButtonText = "Cancelar",
             DefaultButton = ContentDialogButton.Primary,
             XamlRoot = this.XamlRoot
         };
@@ -855,40 +1308,21 @@ public sealed partial class PacientesPage : Page, INotifyPropertyChanged
 
         if (result == ContentDialogResult.Primary)
         {
-            // Validaciones
-            if (!fechaPicker.Date.HasValue)
+            if (valorBox.Value <= 0 || double.IsNaN(valorBox.Value))
             {
-                await ShowInfoDialog("?? Validación", "Debe seleccionar una fecha para la donación.");
-                return await MostrarDialogoDonacion(paciente);
-            }
-
-            if (string.IsNullOrWhiteSpace(procedimientoBox.Text))
-            {
-                await ShowInfoDialog("?? Validación", "Debe especificar el procedimiento médico.");
-                return await MostrarDialogoDonacion(paciente);
-            }
-
-            if (montoSolicitadoBox.Value <= 0)
-            {
-                await ShowInfoDialog("?? Validación", "El monto solicitado debe ser mayor a cero.");
-                return await MostrarDialogoDonacion(paciente);
-            }
-
-            if (valorDonacionBox.Value <= 0)
-            {
-                await ShowInfoDialog("?? Validación", "El valor de la donación debe ser mayor a cero.");
-                return await MostrarDialogoDonacion(paciente);
+                await ShowInfoDialog("Error", "Debe ingresar un monto válido");
+                return null;
             }
 
             return new Donaciones
             {
-                Fecha = fechaPicker.Date.Value.DateTime,
+                idPaciente = paciente.idpaciente,
+                Fecha = DateTime.Now,
+                valor = (decimal)valorBox.Value,
+                total = (decimal)valorBox.Value, // Por simplicidad, igual al valor
+                montoSolicitado = (decimal)(montoSolicitadoBox.Value > 0 ? montoSolicitadoBox.Value : valorBox.Value),
                 procedimiento = procedimientoBox.Text.Trim(),
-                montoSolicitado = (decimal)montoSolicitadoBox.Value,
-                valor = (decimal)valorDonacionBox.Value,
-                total = (decimal)totalBox.Value,
-                observacion = string.IsNullOrWhiteSpace(observacionBox.Text) ? "" : observacionBox.Text.Trim(),
-                idPaciente = paciente.cedula
+                observacion = observacionBox.Text.Trim()
             };
         }
 
@@ -897,92 +1331,137 @@ public sealed partial class PacientesPage : Page, INotifyPropertyChanged
 
     private void PacientesListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        IsPatientSelected = PacientesListView.SelectedItem != null;
-        
+        IsPatientSelected = PacientesListView?.SelectedItem != null;
+
         // Actualizar estado de botones directamente
         var haySeleccion = IsPatientSelected;
-        
+
         if (this.FindName("btnEditar") is Button editBtn)
             editBtn.IsEnabled = haySeleccion;
-            
+
         if (this.FindName("btnEliminar") is Button delBtn)
             delBtn.IsEnabled = haySeleccion;
-            
-        if (this.FindName("btnDonacion") is Button donBtn)
-            donBtn.IsEnabled = haySeleccion;
+
+        if (this.FindName("btnDonacion") is Button donacionBtn)
+            donacionBtn.IsEnabled = haySeleccion;
     }
 
     private async Task ShowInfoDialog(string title, string message)
     {
-        // Crear contenido mejorado
-        var contentStack = new StackPanel
+        // Asegurar que estamos en el UI thread
+        if (!DispatcherQueue.HasThreadAccess)
         {
-            Spacing = 12,
-            MaxWidth = 400
-        };
-
-        // Icono según el tipo de mensaje
-        string iconGlyph = "\uE946"; // Info por defecto
-        Microsoft.UI.Xaml.Media.Brush iconColor = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorAttentionBrush"];
-
-        if (title.Contains("Error") || title.Contains("?"))
-        {
-            iconGlyph = "\uE783"; // Error
-            iconColor = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorCriticalBrush"];
-        }
-        else if (title.Contains("Éxito") || title.Contains("?") || title.Contains("??"))
-        {
-            iconGlyph = "\uE73E"; // Checkmark
-            iconColor = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorSuccessBrush"];
+            await DispatcherQueue.EnqueueAsync(async () =>
+            {
+                await ShowInfoDialogInternal(title, message);
+            });
+            return;
         }
 
-        var iconBorder = new Border
-        {
-            Width = 56,
-            Height = 56,
-            CornerRadius = new CornerRadius(28),
-            Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, 0, 0, 12)
-        };
-
-        var icon = new FontIcon
-        {
-            Glyph = iconGlyph,
-            FontSize = 28,
-            Foreground = iconColor,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        iconBorder.Child = icon;
-
-        var messageText = new TextBlock
-        {
-            Text = message,
-            TextWrapping = TextWrapping.Wrap,
-            TextAlignment = TextAlignment.Center,
-            FontSize = 14,
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorPrimaryBrush"]
-        };
-
-        contentStack.Children.Add(iconBorder);
-        contentStack.Children.Add(messageText);
-
-        var dialog = new ContentDialog
-        {
-            Title = title,
-            Content = contentStack,
-            CloseButtonText = "Aceptar",
-            DefaultButton = ContentDialogButton.Close,
-            XamlRoot = this.XamlRoot
-        };
-
-        await dialog.ShowAsync();
+        await ShowInfoDialogInternal(title, message);
     }
 
-    private async void BtnActualizar_Click(object sender, RoutedEventArgs e)
+    private async Task ShowInfoDialogInternal(string title, string message)
     {
-        _datosYaCargados = false;
-        await CargarPacientesAsync();
+        try
+        {
+            // Verificar que XamlRoot esté disponible
+            if (this.XamlRoot == null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DIALOG] ERROR: XamlRoot es null");
+                return;
+            }
+
+            // Crear contenido simple
+            var contentStack = new StackPanel
+            {
+                Spacing = 12,
+                MaxWidth = 450
+            };
+
+            // Icono según el tipo de mensaje
+            string iconGlyph = "\uE946"; // Info por defecto
+            Windows.UI.Color iconColor;
+
+            if (title.Contains("Error"))
+            {
+                iconGlyph = "\uE783"; // Error
+                iconColor = Windows.UI.Color.FromArgb(255, 196, 43, 28); // Rojo
+            }
+            else if (title.Contains("Éxito"))
+            {
+                iconGlyph = "\uE73E"; // Checkmark
+                iconColor = Windows.UI.Color.FromArgb(255, 16, 124, 16); // Verde
+            }
+            else if (title.Contains("Información") || title.Contains("Advertencia"))
+            {
+                iconGlyph = "\uE946"; // Info
+                iconColor = Windows.UI.Color.FromArgb(255, 255, 185, 0); // Amarillo
+            }
+            else
+            {
+                iconColor = Windows.UI.Color.FromArgb(255, 0, 120, 212); // Azul
+            }
+
+            var iconBorder = new Border
+            {
+                Width = 56,
+                Height = 56,
+                CornerRadius = new CornerRadius(28),
+                Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                    Windows.UI.Color.FromArgb(20, iconColor.R, iconColor.G, iconColor.B)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 12)
+            };
+
+            var icon = new FontIcon
+            {
+                Glyph = iconGlyph,
+                FontSize = 28,
+                Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(iconColor),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            iconBorder.Child = icon;
+
+            var messageText = new TextBlock
+            {
+                Text = message,
+                TextWrapping = TextWrapping.Wrap,
+                TextAlignment = TextAlignment.Center,
+                FontSize = 14
+            };
+
+            contentStack.Children.Add(iconBorder);
+            contentStack.Children.Add(messageText);
+
+            var dialog = new ContentDialog
+            {
+                Title = title,
+                Content = contentStack,
+                CloseButtonText = "Aceptar",
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = this.XamlRoot
+            };
+
+            await dialog.ShowAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[DIALOG] ERROR en ShowInfoDialogInternal: {ex.GetType().Name} - {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[DIALOG] Stack trace: {ex.StackTrace}");
+        }
+    }
+
+    public void Dispose()
+    {
+        try
+        {
+            _searchDelayTimer?.Dispose();
+        }
+        catch
+        {
+            // Ignorar errores durante la limpieza
+        }
     }
 }

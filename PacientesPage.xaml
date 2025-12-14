@@ -11,7 +11,7 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <Page.Resources>
-        <!-- Animaciones de entrada -->
+        <!-- Animaciones -->
         <Storyboard x:Name="FadeInStoryboard">
             <DoubleAnimation Storyboard.TargetName="MainContent"
                            Storyboard.TargetProperty="Opacity"
@@ -29,7 +29,7 @@
             </DoubleAnimation>
         </Storyboard>
 
-        <!-- Estilos modernos -->
+        <!-- Estilos -->
         <Style x:Key="ModernCard" TargetType="Border">
             <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
             <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
@@ -41,38 +41,35 @@
 
         <Style x:Key="StatCard" TargetType="Border">
             <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
-            <Setter Property="CornerRadius" Value="16"/>
-            <Setter Property="Padding" Value="24,20"/>
-            <Setter Property="MinHeight" Value="140"/>
-        </Style>
-
-        <Style x:Key="GlassCard" TargetType="Border">
-            <Setter Property="Background" Value="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}"/>
-            <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="12"/>
-            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Padding" Value="20"/>
+            <Setter Property="MinHeight" Value="120"/>
         </Style>
 
         <Style x:Key="ModernButton" TargetType="Button">
-            <Setter Property="Height" Value="48"/>
-            <Setter Property="MinWidth" Value="140"/>
+            <Setter Property="Height" Value="44"/>
+            <Setter Property="MinWidth" Value="120"/>
             <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Margin" Value="4"/>
         </Style>
 
         <Style x:Key="IconButton" TargetType="Button">
-            <Setter Property="Width" Value="48"/>
-            <Setter Property="Height" Value="48"/>
-            <Setter Property="CornerRadius" Value="24"/>
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="CornerRadius" Value="20"/>
             <Setter Property="Padding" Value="0"/>
         </Style>
 
         <!-- Gradientes -->
-        <LinearGradientBrush x:Key="PrimaryGradient" StartPoint="0,0" EndPoint="1,1">
+        <LinearGradientBrush x:Key="PacientesGradient" StartPoint="0,0" EndPoint="1,1">
             <GradientStop Color="#667eea" Offset="0"/>
             <GradientStop Color="#764ba2" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="PrimaryGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#4facfe" Offset="0"/>
+            <GradientStop Color="#00f2fe" Offset="1"/>
         </LinearGradientBrush>
 
         <LinearGradientBrush x:Key="SuccessGradient" StartPoint="0,0" EndPoint="1,1">
@@ -85,535 +82,593 @@
             <GradientStop Color="#f45c43" Offset="1"/>
         </LinearGradientBrush>
 
-        <LinearGradientBrush x:Key="InfoGradient" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#4facfe" Offset="0"/>
-            <GradientStop Color="#00f2fe" Offset="1"/>
+        <LinearGradientBrush x:Key="WarningGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#f2994a" Offset="0"/>
+            <GradientStop Color="#f2c94c" Offset="1"/>
         </LinearGradientBrush>
     </Page.Resources>
 
-    <Grid x:Name="MainContent" Margin="0">
+    <Grid x:Name="MainContent">
         <Grid.RenderTransform>
             <TranslateTransform Y="0"/>
         </Grid.RenderTransform>
 
-        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24,20">
-            <Grid MaxWidth="1600">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
+        <Grid Padding="24,16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-                <!-- Header con Gradiente Premium -->
-                <Border Grid.Row="0" 
-                       CornerRadius="16" 
-                       Padding="32,28"
-                       Margin="0,0,0,24"
-                       Background="{StaticResource PrimaryGradient}">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <StackPanel Grid.Column="0" Spacing="8">
-                            <StackPanel Orientation="Horizontal" Spacing="16">
-                                <Viewbox Width="40" Height="40">
-                                    <FontIcon Glyph="&#xE77B;" Foreground="White"/>
-                                </Viewbox>
-                                <TextBlock Text="Gestión de Pacientes"
-                                          FontSize="32"
-                                          FontWeight="Bold"
-                                          Foreground="White"
-                                          VerticalAlignment="Center"/>
-                            </StackPanel>
-                            <TextBlock Text="Administración de pacientes y registro médico"
-                                      FontSize="16"
-                                      Foreground="#E3F2FD"
-                                      Opacity="0.9"/>
-                        </StackPanel>
-
-                        <StackPanel Grid.Column="1" 
-                                   VerticalAlignment="Center" 
-                                   Orientation="Horizontal" 
-                                   Spacing="12">
-                            <Button Style="{StaticResource IconButton}"
-                                   Background="#FFFFFF20"
-                                   BorderThickness="0"
-                                   ToolTipService.ToolTip="Actualizar datos"
-                                   Click="BtnActualizar_Click">
-                                <FontIcon Glyph="&#xE72C;" Foreground="White" FontSize="20"/>
-                            </Button>
-                            <Button Style="{StaticResource IconButton}"
-                                   Background="#FFFFFF20"
-                                   BorderThickness="0"
-                                   ToolTipService.ToolTip="Exportar datos">
-                                <FontIcon Glyph="&#xE896;" Foreground="White" FontSize="20"/>
-                            </Button>
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
-                <!-- Tarjetas de Estadísticas Modernas -->
-                <Grid Grid.Row="1" Margin="0,0,0,24">
+            <!-- Header Mejorado -->
+            <Border Grid.Row="0" 
+                   CornerRadius="16" 
+                   Padding="32,24"
+                   Margin="0,0,0,20"
+                   Background="{StaticResource PacientesGradient}">
+                <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="16"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="16"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="16"/>
-                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- Total Pacientes -->
-                    <Border Grid.Column="0" Style="{StaticResource StatCard}">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            
-                            <Border Background="{StaticResource PrimaryGradient}"
-                                   Width="56" Height="56"
+                    <StackPanel Grid.Column="0" Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#FFFFFF30" 
+                                   Width="48" Height="48" 
                                    CornerRadius="12"
-                                   HorizontalAlignment="Left">
-                                <FontIcon Glyph="&#xE716;" Foreground="White" FontSize="28"/>
+                                   Padding="10">
+                                <FontIcon Glyph="&#xE77B;" Foreground="White" FontSize="24"/>
                             </Border>
-
-                            <StackPanel Grid.Row="1" Margin="0,16,0,0">
-                                <TextBlock x:Name="txtTotalPacientes" 
-                                          Text="0" 
-                                          FontSize="36" 
-                                          FontWeight="Bold"/>
-                                <TextBlock Text="Total Pacientes" 
-                                          FontSize="14" 
-                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            </StackPanel>
-
-                            <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="4">
-                                <FontIcon Glyph="&#xE74E;" FontSize="12" Foreground="#11998e"/>
-                                <TextBlock Text="+12% este mes" FontSize="12" Foreground="#11998e"/>
-                            </StackPanel>
-                        </Grid>
-                    </Border>
-
-                    <!-- Activos -->
-                    <Border Grid.Column="2" Style="{StaticResource StatCard}">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            
-                            <Border Background="{StaticResource SuccessGradient}"
-                                   Width="56" Height="56"
-                                   CornerRadius="12"
-                                   HorizontalAlignment="Left">
-                                <FontIcon Glyph="&#xE8FB;" Foreground="White" FontSize="28"/>
-                            </Border>
-
-                            <StackPanel Grid.Row="1" Margin="0,16,0,0">
-                                <TextBlock x:Name="txtPacientesActivos" 
-                                          Text="0" 
-                                          FontSize="36" 
-                                          FontWeight="Bold"/>
-                                <TextBlock Text="Pacientes Activos" 
-                                          FontSize="14" 
-                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            </StackPanel>
-
-                            <ProgressBar Grid.Row="2" Value="85" Foreground="#11998e" Height="4"/>
-                        </Grid>
-                    </Border>
-
-                    <!-- Áreas -->
-                    <Border Grid.Column="4" Style="{StaticResource StatCard}">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            
-                            <Border Background="{StaticResource InfoGradient}"
-                                   Width="56" Height="56"
-                                   CornerRadius="12"
-                                   HorizontalAlignment="Left">
-                                <FontIcon Glyph="&#xE8F4;" Foreground="White" FontSize="28"/>
-                            </Border>
-
-                            <StackPanel Grid.Row="1" Margin="0,16,0,0">
-                                <TextBlock x:Name="txtPorArea" 
-                                          Text="0" 
-                                          FontSize="36" 
-                                          FontWeight="Bold"/>
-                                <TextBlock Text="Áreas Activas" 
-                                          FontSize="14" 
-                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            </StackPanel>
-
-                            <Border Grid.Row="2" 
-                                   Background="{ThemeResource AccentAAFillColorTertiaryBrush}"
-                                   CornerRadius="8"
-                                   Padding="8,4">
-                                <TextBlock Text="6 regiones" FontSize="11" FontWeight="SemiBold"/>
-                            </Border>
-                        </Grid>
-                    </Border>
-
-                    <!-- Nuevos este mes -->
-                    <Border Grid.Column="6" Style="{StaticResource StatCard}">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            
-                            <Border Background="{StaticResource DangerGradient}"
-                                   Width="56" Height="56"
-                                   CornerRadius="12"
-                                   HorizontalAlignment="Left">
-                                <FontIcon Glyph="&#xE787;" Foreground="White" FontSize="28"/>
-                            </Border>
-
-                            <StackPanel Grid.Row="1" Margin="0,16,0,0">
-                                <TextBlock x:Name="txtUltimoMes" 
-                                          Text="N/A" 
-                                          FontSize="36" 
-                                          FontWeight="Bold"/>
-                                <TextBlock Text="Nuevos Este Mes" 
-                                          FontSize="14" 
-                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            </StackPanel>
-
-                            <TextBlock Grid.Row="2" 
-                                      Text="📅 Últimos 30 días" 
-                                      FontSize="12" 
-                                      Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                        </Grid>
-                    </Border>
-                </Grid>
-
-                <!-- Barra de Herramientas Premium -->
-                <Border Grid.Row="2" Style="{StaticResource ModernCard}">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <!-- Búsqueda Avanzada -->
-                        <Border Grid.Column="0" 
-                               Background="{ThemeResource ControlFillColorDefaultBrush}"
-                               CornerRadius="10"
-                               Padding="16,0"
-                               Height="52"
-                               BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
-                               BorderThickness="1">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-
-                                <FontIcon Glyph="&#xE721;" 
-                                         Grid.Column="0"
-                                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                         FontSize="20"
-                                         Margin="0,0,12,0"/>
-
-                                <AutoSuggestBox x:Name="SearchBox"
-                                               Grid.Column="1"
-                                               PlaceholderText="Buscar pacientes por nombre, cédula, área o teléfono..."
-                                               TextChanged="SearchBox_TextChanged"
-                                               Background="Transparent"
-                                               BorderThickness="0"
-                                               VerticalAlignment="Center"/>
-
-                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
-                                    <Button Style="{StaticResource IconButton}"
-                                           Width="36" Height="36"
-                                           Background="Transparent"
-                                           ToolTipService.ToolTip="Filtros avanzados">
-                                        <FontIcon Glyph="&#xE71C;" FontSize="16"/>
-                                    </Button>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-
-                        <!-- Botones de Acción -->
-                        <StackPanel Grid.Column="1" 
-                                   Orientation="Horizontal" 
-                                   Spacing="12" 
-                                   Margin="20,0,0,0">
-                            <Button Click="BtnNuevoPaciente_Click"
-                                   Style="{StaticResource ModernButton}"
-                                   Background="{StaticResource PrimaryGradient}"
-                                   Foreground="White"
-                                   BorderThickness="0">
-                                <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <FontIcon Glyph="&#xE710;" FontSize="18"/>
-                                    <TextBlock Text="Nuevo Paciente" FontSize="14"/>
-                                </StackPanel>
-                            </Button>
-
-                            <Button x:Name="btnEditar"
-                                   Click="BtnEditarPaciente_Click"
-                                   Style="{StaticResource ModernButton}"
-                                   Background="{ThemeResource SystemFillColorAttentionBrush}"
-                                   IsEnabled="False">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <FontIcon Glyph="&#xE70F;" FontSize="16"/>
-                                    <TextBlock Text="Editar" FontSize="14"/>
-                                </StackPanel>
-                            </Button>
-
-                            <Button x:Name="btnEliminar"
-                                   Click="BtnEliminarPaciente_Click"
-                                   Style="{StaticResource ModernButton}"
-                                   Background="{StaticResource DangerGradient}"
-                                   Foreground="White"
-                                   BorderThickness="0"
-                                   IsEnabled="False">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <FontIcon Glyph="&#xE74D;" FontSize="16"/>
-                                    <TextBlock Text="Eliminar" FontSize="14"/>
-                                </StackPanel>
-                            </Button>
-
-                            <Button x:Name="btnDonacion"
-                                   Click="BtnRegistrarDonacion_Click"
-                                   Style="{StaticResource ModernButton}"
-                                   Background="{StaticResource SuccessGradient}"
-                                   Foreground="White"
-                                   BorderThickness="0"
-                                   IsEnabled="False">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <FontIcon Glyph="&#xE8EC;" FontSize="16"/>
-                                    <TextBlock Text="Donación" FontSize="14"/>
-                                </StackPanel>
-                            </Button>
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
-                <!-- Tabs de Vista -->
-                <Border Grid.Row="3" 
-                       Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                       CornerRadius="12"
-                       Padding="8"
-                       Margin="0,0,0,16">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
-                            <ToggleButton Content="📋 Lista" IsChecked="True" MinWidth="100" Height="40" CornerRadius="8"/>
-                            <ToggleButton Content="📊 Estadísticas" MinWidth="120" Height="40" CornerRadius="8"/>
-                        </StackPanel>
-
-                        <TextBlock Grid.Column="2" 
-                                  VerticalAlignment="Center"
-                                  Margin="0,0,12,0"
-                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}">
-                            <Run Text="Total:"/>
-                            <Run x:Name="txtContador" Text="0" FontWeight="Bold"/>
-                            <Run Text="pacientes"/>
-                        </TextBlock>
-                    </Grid>
-                </Border>
-
-                <!-- Lista de Pacientes Premium -->
-                <Border Grid.Row="4" Style="{StaticResource ModernCard}" MinHeight="400">
-                    <Grid>
-                        <ScrollViewer HorizontalScrollBarVisibility="Auto" 
-                                     VerticalScrollBarVisibility="Auto">
-                            <ListView x:Name="PacientesListView"
-                                     SelectionMode="Single"
-                                     SelectionChanged="PacientesListView_SelectionChanged"
-                                     CornerRadius="8">
-                                <ListView.ItemContainerStyle>
-                                    <Style TargetType="ListViewItem">
-                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                        <Setter Property="Padding" Value="0"/>
-                                        <Setter Property="Margin" Value="0,0,0,2"/>
-                                    </Style>
-                                </ListView.ItemContainerStyle>
-
-                                <ListView.Header>
-                                    <Border Background="{ThemeResource SystemFillColorSolidNeutralBackgroundBrush}"
-                                           CornerRadius="8,8,0,0"
-                                           Padding="20,16"
-                                           MinWidth="1400">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="140"/>
-                                                <ColumnDefinition Width="280"/>
-                                                <ColumnDefinition Width="140"/>
-                                                <ColumnDefinition Width="140"/>
-                                                <ColumnDefinition Width="120"/>
-                                                <ColumnDefinition Width="100"/>
-                                                <ColumnDefinition Width="160"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Text="CÉDULA" Grid.Column="0" FontWeight="Bold" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                            <TextBlock Text="NOMBRE COMPLETO" Grid.Column="1" FontWeight="Bold" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                            <TextBlock Text="TELÉFONO" Grid.Column="2" FontWeight="Bold" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                            <TextBlock Text="CELULAR" Grid.Column="3" FontWeight="Bold" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                            <TextBlock Text="N° REGISTRO" Grid.Column="4" FontWeight="Bold" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                            <TextBlock Text="SEXO" Grid.Column="5" FontWeight="Bold" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                            <TextBlock Text="ÁREA" Grid.Column="6" FontWeight="Bold" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                            <TextBlock Text="OBSERVACIONES" Grid.Column="7" FontWeight="Bold" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                        </Grid>
-                                    </Border>
-                                </ListView.Header>
-
-                                <ListView.ItemTemplate>
-                                    <DataTemplate x:DataType="models:Paciente">
-                                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                               CornerRadius="8"
-                                               Padding="20,16"
-                                               Margin="0,1"
-                                               MinWidth="1400"
-                                               BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
-                                               BorderThickness="0,0,0,1">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="140"/>
-                                                    <ColumnDefinition Width="280"/>
-                                                    <ColumnDefinition Width="140"/>
-                                                    <ColumnDefinition Width="140"/>
-                                                    <ColumnDefinition Width="120"/>
-                                                    <ColumnDefinition Width="100"/>
-                                                    <ColumnDefinition Width="160"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                </Grid.ColumnDefinitions>
-
-                                                <TextBlock Text="{x:Bind cedula}" 
-                                                          Grid.Column="0"
-                                                          FontFamily="Consolas"
-                                                          FontSize="13"
-                                                          FontWeight="SemiBold"
-                                                          Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
-                                                          VerticalAlignment="Center"/>
-
-                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                    <TextBlock Text="{x:Bind nombre}" 
-                                                              FontWeight="SemiBold"
-                                                              FontSize="14"
-                                                              TextTrimming="CharacterEllipsis"/>
-                                                </StackPanel>
-
-                                                <TextBlock Text="{x:Bind telefono}" 
-                                                          Grid.Column="2"
-                                                          VerticalAlignment="Center"
-                                                          FontSize="13"/>
-
-                                                <TextBlock Text="{x:Bind celular}" 
-                                                          Grid.Column="3"
-                                                          VerticalAlignment="Center"
-                                                          FontSize="13"/>
-
-                                                <TextBlock Text="{x:Bind nrecord}" 
-                                                          Grid.Column="4"
-                                                          VerticalAlignment="Center"
-                                                          FontSize="13"/>
-
-                                                <Border Grid.Column="5"
-                                                       Background="{ThemeResource AccentAAFillColorTertiaryBrush}"
-                                                       CornerRadius="16"
-                                                       Padding="12,6"
-                                                       HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center">
-                                                    <TextBlock Text="{x:Bind sexo}"
-                                                              FontSize="12"
-                                                              FontWeight="SemiBold"
-                                                              TextAlignment="Center"/>
-                                                </Border>
-
-                                                <Border Grid.Column="6"
-                                                       Background="{ThemeResource SystemFillColorSolidNeutralBrush}"
-                                                       CornerRadius="8"
-                                                       Padding="12,8"
-                                                       VerticalAlignment="Center">
-                                                    <TextBlock Text="{x:Bind area}"
-                                                              FontSize="12"
-                                                              FontWeight="Medium"
-                                                              TextTrimming="CharacterEllipsis"
-                                                              TextAlignment="Center"/>
-                                                </Border>
-
-                                                <TextBlock Text="{x:Bind observaciones}" 
-                                                          Grid.Column="7"
-                                                          VerticalAlignment="Center"
-                                                          FontSize="12"
-                                                          FontStyle="Italic"
-                                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                          TextTrimming="CharacterEllipsis"/>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ListView.ItemTemplate>
-                            </ListView>
-                        </ScrollViewer>
-
-                        <!-- Empty State Ultra Moderno -->
-                        <StackPanel x:Name="EmptyState"
-                                   Visibility="Collapsed"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center"
-                                   Spacing="32">
-                            <Viewbox Width="200" Height="200">
-                                <Grid>
-                                    <Ellipse Fill="{StaticResource PrimaryGradient}" Opacity="0.1"/>
-                                    <FontIcon Glyph="&#xE77B;" 
-                                             Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                             FontSize="120"/>
-                                </Grid>
-                            </Viewbox>
-                            
-                            <StackPanel Spacing="12">
-                                <TextBlock Text="No hay pacientes registrados"
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Gestión de Pacientes"
                                           FontSize="28"
                                           FontWeight="Bold"
-                                          HorizontalAlignment="Center"/>
-                                <TextBlock Text="Comienza agregando tu primer paciente para gestionar la información médica"
-                                          HorizontalAlignment="Center"
-                                          TextAlignment="Center"
-                                          MaxWidth="500"
-                                          TextWrapping="Wrap"
-                                          FontSize="16"
+                                          Foreground="White"/>
+                                <TextBlock Text="Administra y monitorea todos los pacientes registrados"
+                                          FontSize="14"
+                                          Foreground="#E8EAED"
+                                          Opacity="0.9"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" 
+                               VerticalAlignment="Center" 
+                               Orientation="Horizontal" 
+                               Spacing="8">
+                        <Button Style="{StaticResource IconButton}"
+                               Background="#FFFFFF20"
+                               BorderThickness="0"
+                               Click="BtnActualizar_Click"
+                               ToolTipService.ToolTip="Actualizar datos">
+                            <FontIcon Glyph="&#xE72C;" Foreground="White" FontSize="18"/>
+                        </Button>
+                        <Button Style="{StaticResource IconButton}"
+                               Background="#FFFFFF20"
+                               BorderThickness="0"
+                               ToolTipService.ToolTip="Exportar datos">
+                            <FontIcon Glyph="&#xE896;" Foreground="White" FontSize="18"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Estadísticas Mejoradas 
+            <Grid Grid.Row="1" Margin="0,0,0,20">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                 Total Pacientes 
+                <Border Grid.Column="0" Style="{StaticResource StatCard}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12">
+                            <Border Background="{StaticResource PacientesGradient}"
+                                   Width="44" Height="44"
+                                   CornerRadius="10">
+                                <FontIcon Glyph="&#xE716;" Foreground="White" FontSize="20"/>
+                            </Border>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Total Pacientes" 
+                                          FontSize="12" 
                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="txtTotalPacientes" 
+                                          Text="0" 
+                                          FontSize="28" 
+                                          FontWeight="Bold"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                Activos 
+                <Border Grid.Column="2" Style="{StaticResource StatCard}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12">
+                            <Border Background="{StaticResource SuccessGradient}"
+                                   Width="44" Height="44"
+                                   CornerRadius="10">
+                                <FontIcon Glyph="&#xE8FB;" Foreground="White" FontSize="20"/>
+                            </Border>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Pacientes Activos" 
+                                          FontSize="12" 
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="txtPacientesActivos" 
+                                          Text="0" 
+                                          FontSize="28" 
+                                          FontWeight="Bold"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                 Áreas
+                <Border Grid.Column="4" Style="{StaticResource StatCard}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12">
+                            <Border Background="{StaticResource PrimaryGradient}"
+                                   Width="44" Height="44"
+                                   CornerRadius="10">
+                                <FontIcon Glyph="&#xE8F4;" Foreground="White" FontSize="20"/>
+                            </Border>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Áreas Activas" 
+                                          FontSize="12" 
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="txtPorArea" 
+                                          Text="0" 
+                                          FontSize="28" 
+                                          FontWeight="Bold"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                Nuevos este mes 
+                <Border Grid.Column="6" Style="{StaticResource StatCard}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12">
+                            <Border Background="{StaticResource WarningGradient}"
+                                   Width="44" Height="44"
+                                   CornerRadius="10">
+                                <FontIcon Glyph="&#xE787;" Foreground="White" FontSize="20"/>
+                            </Border>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Nuevos Este Mes" 
+                                          FontSize="12" 
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="txtUltimoMes" 
+                                          Text="N/A" 
+                                          FontSize="28" 
+                                          FontWeight="Bold"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>-->
+
+            <!-- Contenido Principal -->
+            <Grid Grid.Row="2">
+                <!-- Panel Principal de Lista -->
+                <Border Style="{StaticResource ModernCard}" Margin="0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Barra de Herramientas -->
+                        <Grid Grid.Row="0" Margin="0,0,0,16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Búsqueda -->
+                            <Border Grid.Column="0" 
+                                   Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                   CornerRadius="8"
+                                   Padding="12,0"
+                                   Height="44"
+                                   BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                                   BorderThickness="1"
+                                   Margin="0,0,12,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <FontIcon Glyph="&#xE721;" 
+                                             Grid.Column="0"
+                                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                             FontSize="16"
+                                             Margin="0,0,8,0"/>
+
+                                    <AutoSuggestBox x:Name="SearchBox"
+                                                   Grid.Column="1"
+                                                   PlaceholderText="Buscar pacientes..."
+                                                   TextChanged="SearchBox_TextChanged"
+                                                   Background="Transparent"
+                                                   BorderThickness="0"
+                                                   VerticalAlignment="Center"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Botones de Acción -->
+                            <StackPanel Grid.Column="1" 
+                                       Orientation="Horizontal" 
+                                       Spacing="8">
+                                <Button Click="BtnNuevoPaciente_Click"
+                                       Style="{StaticResource ModernButton}"
+                                       Background="{StaticResource PacientesGradient}"
+                                       Foreground="White"
+                                       BorderThickness="0">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <FontIcon Glyph="&#xE710;" FontSize="16"/>
+                                        <TextBlock Text="Nuevo" FontSize="13"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <Button x:Name="btnDonacion"
+                                       Click="BtnRegistrarDonacion_Click"
+                                       Style="{StaticResource ModernButton}"
+                                       Background="{StaticResource SuccessGradient}"
+                                       Foreground="White"
+                                       BorderThickness="0"
+                                       IsEnabled="False">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="&#xE8EC;" FontSize="14"/>
+                                        <TextBlock Text="Donación" FontSize="13"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Filtros -->
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="12" Margin="0,0,0,16">
+                            <Border VerticalAlignment="Bottom" 
+                                   Background="{ThemeResource SystemFillColorSolidNeutralBackgroundBrush}"
+                                   CornerRadius="6"
+                                   Padding="12,8"
+                                   Margin="0,0,0,2">
+                                <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}">
+                                    <Run Text="Total:"/>
+                                    <Run x:Name="txtContador" Text="0" FontWeight="Bold"/>
+                                    <Run Text="pacientes"/>
+                                </TextBlock>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Separador -->
+                        <Border Grid.Row="2" 
+                               Height="1" 
+                               Background="{ThemeResource DividerStrokeColorDefaultBrush}"
+                               Margin="0,0,0,16"/>
+
+                        <!-- Lista de Pacientes -->
+                        <Grid Grid.Row="3">
+                            <ScrollViewer x:Name="ListViewScroller"
+                                         VerticalScrollBarVisibility="Auto">
+                                <ListView x:Name="PacientesListView"
+                                         SelectionMode="Single"
+                                         SelectionChanged="PacientesListView_SelectionChanged">
+                                    <ListView.ItemContainerStyle>
+                                        <Style TargetType="ListViewItem">
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                            <Setter Property="Padding" Value="12"/>
+                                            <Setter Property="Margin" Value="0,0,0,8"/>
+                                        </Style>
+                                    </ListView.ItemContainerStyle>
+
+                                    <ListView.ItemTemplate>
+                                        <DataTemplate x:DataType="models:Paciente">
+                                            <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                                                   CornerRadius="10"
+                                                   Padding="20,16"
+                                                   BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                   BorderThickness="1">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <!-- Badge ID -->
+                                                    <Border Grid.Column="0"
+                                                           Background="{StaticResource PacientesGradient}"
+                                                           CornerRadius="8"
+                                                           Padding="10,6"
+                                                           Margin="0,0,16,0"
+                                                           VerticalAlignment="Center">
+                                                        <TextBlock Text="{x:Bind idpaciente}"
+                                                                  FontSize="11"
+                                                                  FontWeight="SemiBold"
+                                                                  Foreground="White"/>
+                                                    </Border>
+
+                                                    <!-- Cédula y Info -->
+                                                    <StackPanel Grid.Column="1" 
+                                                               VerticalAlignment="Center"
+                                                               Spacing="4"
+                                                               Margin="0,0,20,0"
+                                                               MinWidth="120">
+                                                        <TextBlock Text="{x:Bind cedula}"
+                                                                  FontFamily="Consolas"
+                                                                  FontSize="15"
+                                                                  FontWeight="Bold"
+                                                                  Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                                        <TextBlock Text="{x:Bind sexo}" 
+                                                                  FontSize="11"
+                                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                    </StackPanel>
+
+                                                    <!-- Información Principal -->
+                                                    <StackPanel Grid.Column="2" 
+                                                               VerticalAlignment="Center"
+                                                               Spacing="6">
+                                                        <TextBlock Text="{x:Bind nombre}" 
+                                                                  FontSize="15"
+                                                                  FontWeight="SemiBold"
+                                                                  TextTrimming="CharacterEllipsis"/>
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            
+                                                            <Border Grid.Column="0"
+                                                                   Background="{ThemeResource SystemFillColorSolidNeutralBrush}"
+                                                                   CornerRadius="6"
+                                                                   Padding="8,4"
+                                                                   Margin="0,0,8,0">
+                                                                <TextBlock Text="{x:Bind area}"
+                                                                          FontSize="10"
+                                                                          FontWeight="SemiBold"/>
+                                                            </Border>
+
+                                                            <TextBlock Grid.Column="1"
+                                                                      Text="{x:Bind telefono}" 
+                                                                      FontSize="11"
+                                                                      Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                      TextTrimming="CharacterEllipsis"
+                                                                      VerticalAlignment="Center"
+                                                                      Margin="0,0,8,0"/>
+                                                            
+                                                            <TextBlock Grid.Column="2"
+                                                                      Text="{x:Bind celular}" 
+                                                                      FontSize="11"
+                                                                      Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                      TextTrimming="CharacterEllipsis"
+                                                                      VerticalAlignment="Center"/>
+                                                        </Grid>
+                                                    </StackPanel>
+
+                                                    <!-- Botones de Acción -->
+                                                    <StackPanel Grid.Column="3" 
+                                                               Orientation="Horizontal" 
+                                                               HorizontalAlignment="Right"
+                                                               VerticalAlignment="Center"
+                                                               Margin="20,0,0,0"
+                                                               Spacing="6">
+                                                        <Button Click="BtnVerDonaciones_Click"
+                                                               Tag="{x:Bind idpaciente}"
+                                                               Style="{StaticResource IconButton}"
+                                                               Background="{StaticResource PrimaryGradient}"
+                                                               BorderThickness="0"
+                                                               ToolTipService.ToolTip="Ver Donaciones">
+                                                            <FontIcon Glyph="&#xE8EC;" FontSize="14" Foreground="White"/>
+                                                        </Button>
+                                                        
+                                                        <Button Click="BtnEditarPaciente_Click"
+                                                               Tag="{x:Bind idpaciente}"
+                                                               Style="{StaticResource IconButton}"
+                                                               ToolTipService.ToolTip="Editar">
+                                                            <FontIcon Glyph="&#xE70F;" FontSize="14"/>
+                                                        </Button>
+                                                        
+                                                        <Button Click="BtnEliminarPaciente_Click"
+                                                               Tag="{x:Bind idpaciente}"
+                                                               Style="{StaticResource IconButton}"
+                                                               Background="{StaticResource DangerGradient}"
+                                                               BorderThickness="0"
+                                                               ToolTipService.ToolTip="Eliminar">
+                                                            <FontIcon Glyph="&#xE74D;" FontSize="14" Foreground="White"/>
+                                                        </Button>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListView.ItemTemplate>
+                                </ListView>
+                            </ScrollViewer>
+
+                            <!-- Empty State -->
+                            <StackPanel x:Name="EmptyState"
+                                       Visibility="Collapsed"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Spacing="24"
+                                       Padding="40">
+                                <Border Background="{StaticResource PacientesGradient}"
+                                       Width="120" Height="120"
+                                       CornerRadius="60"
+                                       Opacity="0.1"/>
+                                <FontIcon Glyph="&#xE77B;" 
+                                         FontSize="80"
+                                         Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                         Margin="0,-140,0,60"/>
+                                
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="No hay pacientes registrados"
+                                              FontSize="24"
+                                              FontWeight="SemiBold"
+                                              HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Comienza registrando el primer paciente"
+                                              HorizontalAlignment="Center"
+                                              FontSize="14"
+                                              Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                </StackPanel>
+
+                                <Button Click="BtnNuevoPaciente_Click"
+                                       Background="{StaticResource PacientesGradient}"
+                                       Foreground="White"
+                                       BorderThickness="0"
+                                       Height="48"
+                                       MinWidth="180"
+                                       CornerRadius="8"
+                                       FontSize="15"
+                                       FontWeight="SemiBold">
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <FontIcon Glyph="&#xE710;" FontSize="18"/>
+                                        <TextBlock Text="Crear Paciente"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Paginación -->
+                        <Grid Grid.Row="4"
+                             Margin="0,16,0,0"
+                             Padding="0,12,0,0"
+                             BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                             BorderThickness="0,1,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Info de Página -->
+                            <StackPanel Grid.Column="0" 
+                                       Orientation="Horizontal" 
+                                       Spacing="8"
+                                       VerticalAlignment="Center">
+                                <Border Background="{StaticResource PacientesGradient}"
+                                       CornerRadius="6"
+                                       Padding="10,6">
+                                    <TextBlock x:Name="txtPageInfo"
+                                              Text="{x:Bind PageInfo, Mode=OneWay}"
+                                              FontSize="12"
+                                              FontWeight="SemiBold"
+                                              Foreground="White"/>
+                                </Border>
                             </StackPanel>
 
-                            <Button Click="BtnNuevoPaciente_Click"
-                                   Background="{StaticResource PrimaryGradient}"
-                                   Foreground="White"
-                                   BorderThickness="0"
-                                   Height="56"
-                                   MinWidth="220"
-                                   CornerRadius="12"
-                                   FontSize="16"
-                                   FontWeight="SemiBold">
-                                <StackPanel Orientation="Horizontal" Spacing="12">
-                                    <FontIcon Glyph="&#xE710;" FontSize="20"/>
-                                    <TextBlock Text="Agregar Primer Paciente"/>
-                                </StackPanel>
-                            </Button>
-                        </StackPanel>
+                            <!-- Botones de Navegación -->
+                            <StackPanel Grid.Column="2" 
+                                       Orientation="Horizontal" 
+                                       Spacing="6"
+                                       VerticalAlignment="Center">
+                                <Button x:Name="btnFirstPage"
+                                       Click="BtnFirstPage_Click"
+                                       Style="{StaticResource IconButton}"
+                                       IsEnabled="{x:Bind HasPreviousPage, Mode=OneWay}"
+                                       ToolTipService.ToolTip="Primera">
+                                    <FontIcon Glyph="&#xE892;" FontSize="14"/>
+                                </Button>
+
+                                <Button x:Name="btnPreviousPage"
+                                       Click="BtnPreviousPage_Click"
+                                       IsEnabled="{x:Bind HasPreviousPage, Mode=OneWay}"
+                                       Width="70"
+                                       Height="40"
+                                       CornerRadius="8"
+                                       ToolTipService.ToolTip="Anterior">
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <FontIcon Glyph="&#xE76B;" FontSize="12"/>
+                                        <TextBlock Text="Ant" FontSize="12" FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <Border Background="{ThemeResource AccentFillColorSelectedTextBackgroundBrush}"
+                                       CornerRadius="8"
+                                       Padding="14,10"
+                                       MinWidth="50">
+                                    <TextBlock Text="{x:Bind CurrentPage, Mode=OneWay}"
+                                              FontSize="14"
+                                              FontWeight="Bold"
+                                              Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                              HorizontalAlignment="Center"/>
+                                </Border>
+
+                                <Button x:Name="btnNextPage"
+                                       Click="BtnNextPage_Click"
+                                       IsEnabled="{x:Bind HasNextPage, Mode=OneWay}"
+                                       Width="70"
+                                       Height="40"
+                                       CornerRadius="8"
+                                       ToolTipService.ToolTip="Siguiente">
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <TextBlock Text="Sig" FontSize="12" FontWeight="SemiBold"/>
+                                        <FontIcon Glyph="&#xE76C;" FontSize="12"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <Button x:Name="btnLastPage"
+                                       Click="BtnLastPage_Click"
+                                       Style="{StaticResource IconButton}"
+                                       IsEnabled="{x:Bind HasNextPage, Mode=OneWay}"
+                                       ToolTipService.ToolTip="Última">
+                                    <FontIcon Glyph="&#xE893;" FontSize="14"/>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
                     </Grid>
                 </Border>
             </Grid>
-        </ScrollViewer>
+        </Grid>
+
+        <!-- Loading Indicator -->
+        <Grid x:Name="LoadingOverlay"
+             Background="#80000000"
+             Visibility="Collapsed">
+            <StackPanel HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Spacing="16">
+                <ProgressRing x:Name="LoadingIndicator"
+                             Width="60"
+                             Height="60"
+                             Foreground="White"/>
+                <TextBlock Text="Cargando pacientes..."
+                          Foreground="White"
+                          FontSize="16"
+                          HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Grid>
     </Grid>
 </Page>

@@ -15,7 +15,8 @@ using iText.Kernel.Font;
 using iText.IO.Font.Constants;
 using iText.Kernel.Geom;
 using iText.Layout.Borders;
-using IOPath = System.IO.Path; // Alias para evitar conflicto con iText.Kernel.Geom.Path
+using IOPath = System.IO.Path;
+using System.IO; // Alias para evitar conflicto con iText.Kernel.Geom.Path
 
 namespace RamaFemenina.Services
 {
@@ -50,7 +51,7 @@ namespace RamaFemenina.Services
         /// </summary>
         public async Task<string> GenerarReporteAreaAsync()
         {
-            Debug.WriteLine("[PDF] ??? Generando Reporte por Área ???");
+            Debug.WriteLine("[PDF] ?? Generando Reporte por área ??");
 
             // Consultar directamente las áreas de los pacientes (SIN filtro por año)
             var pacientesPorArea = await _context.Pacientes
@@ -79,10 +80,10 @@ namespace RamaFemenina.Services
         /// </summary>
         public async Task<string> GenerarReporteFallecidasAsync()
         {
-            Debug.WriteLine("[PDF] ??? Generando Reporte de Fallecidas ???");
+            Debug.WriteLine("[PDF] ?? Generando Reporte de Fallecidas ??");
 
             var fallecidas = await _context.Pacientes
-                .Where(p => p.observaciones != null && p.observaciones.Contains("falleci"))
+                .Where(p => p.estado != null && p.estado.ToLower().Contains("fallecid"))
                 .ToListAsync();
 
             return GenerarPdfReporteFallecidas(fallecidas);
@@ -91,11 +92,11 @@ namespace RamaFemenina.Services
         /// <summary>
         /// Opción 3: Reporte de Donaciones por Paciente
         /// </summary>
-        public async Task<string> GenerarReporteDonacionesPacienteAsync(string idPaciente)
+        public async Task<string> GenerarReporteDonacionesPacienteAsync(int idPaciente)
         {
-            Debug.WriteLine($"[PDF] ??? Generando Reporte Donaciones - Paciente: {idPaciente} ???");
+            Debug.WriteLine($"[PDF] ?? Generando Reporte Donaciones - Paciente: {idPaciente} ??");
 
-            var paciente = await _context.Pacientes.FirstOrDefaultAsync(p => p.cedula == idPaciente);
+            var paciente = await _context.Pacientes.FirstOrDefaultAsync(p => p.idpaciente == idPaciente);
             if (paciente == null)
                 throw new Exception($"Paciente {idPaciente} no encontrado");
 
@@ -112,10 +113,10 @@ namespace RamaFemenina.Services
         /// </summary>
         public async Task<string> GenerarReporteActivasAsync()
         {
-            Debug.WriteLine("[PDF] ??? Generando Reporte de Activas ???");
+            Debug.WriteLine("[PDF] ?? Generando Reporte de Activas ??");
 
             var activas = await _context.Pacientes
-                .Where(p => p.observaciones == null || !p.observaciones.Contains("falleci"))
+                .Where(p => p.estado == null || !p.estado.ToLower().Contains("fallecid"))
                 .OrderBy(p => p.nombre)
                 .ToListAsync();
 
@@ -131,17 +132,17 @@ namespace RamaFemenina.Services
         }
 
         /// <summary>
-        /// Opción 6: Reporte por Área y Año (EXACTO al Crystal Reports)
+        /// Opción 6: Reporte por área y Año (EXACTO al Crystal Reports)
         /// </summary>
         public async Task<string> GenerarReporteAreaPorAnioAsync(int anio)
         {
-            Debug.WriteLine($"[PDF] ??? Generando Reporte por Área - Año {anio} ???");
+            Debug.WriteLine($"[PDF] ?? Generando Reporte por área - Año {anio} ??");
 
-            // Query para datos principales (por área)
+            // Query para datos principales (por área) - usando la relación correcta
             var donacionesPorArea = await _context.Donaciones
+                .Include(d => d.Paciente)
                 .Where(d => d.Fecha.Year == anio)
-                .Join(_context.Pacientes, d => d.idPaciente, p => p.cedula, (d, p) => new { d, p })
-                .GroupBy(x => x.p.area)
+                .GroupBy(d => d.Paciente.area)
                 .Select(g => new
                 {
                     Area = g.Key ?? "Sin área",
@@ -157,13 +158,11 @@ namespace RamaFemenina.Services
                 Porciento = totalCasos > 0 ? (decimal)x.Cantidad / totalCasos * 100 : 0
             })).ToList();
 
-            // Query para datos de género
-            var datosPorGenero = await _context.Pacientes
-                .Join(_context.Donaciones.Where(d => d.Fecha.Year == anio),
-                    p => p.cedula,
-                    d => d.idPaciente,
-                    (p, d) => p)
-                .GroupBy(p => p.sexo)
+            // Query para datos de género - usando Include para obtener la relación
+            var datosPorGenero = await _context.Donaciones
+                .Include(d => d.Paciente)
+                .Where(d => d.Fecha.Year == anio)
+                .GroupBy(d => d.Paciente.sexo)
                 .Select(g => (object)(new
                 {
                     Sexo = g.Key ?? "No especificado",
@@ -179,7 +178,7 @@ namespace RamaFemenina.Services
         /// </summary>
         public async Task<string> GenerarReciboIngresosAsync(ReciboParametros parametros)
         {
-            Debug.WriteLine($"[PDF] ??? Generando Recibo Ingresos #{parametros.NumeroRecibo} ???");
+            Debug.WriteLine($"[PDF] ?? Generando Recibo Ingresos #{parametros.NumeroRecibo} ??");
             return await Task.Run(() => GenerarPdfReciboIngresos(parametros));
         }
 
@@ -188,7 +187,7 @@ namespace RamaFemenina.Services
         /// </summary>
         public async Task<string> GenerarReciboIngresoCompletoAsync(ReciboCompletoParametros parametros)
         {
-            Debug.WriteLine($"[PDF] ??? Generando Recibo Completo #{parametros.NumeroRecibo} ???");
+            Debug.WriteLine($"[PDF] ?? Generando Recibo Completo #{parametros.NumeroRecibo} ??");
             return await Task.Run(() => GenerarPdfReciboCompleto(parametros));
         }
 
@@ -197,7 +196,7 @@ namespace RamaFemenina.Services
         /// </summary>
         public async Task<string> GenerarReciboDesembolsoAsync(DesembolsoParametros parametros)
         {
-            Debug.WriteLine($"[PDF] ??? Generando Recibo Desembolso #{parametros.NumeroRecibo} ???");
+            Debug.WriteLine($"[PDF] ?? Generando Recibo Desembolso #{parametros.NumeroRecibo} ??");
             return await Task.Run(() => GenerarPdfReciboDesembolso(parametros));
         }
 
@@ -217,7 +216,7 @@ namespace RamaFemenina.Services
                 using (var document = new Document(pdf))
                 {
                     // Título exacto como en la imagen
-                    document.Add(new Paragraph("Reporte por Área")
+                    document.Add(new Paragraph("Reporte por área")
                         .SetFont(_boldFont)
                         .SetFontSize(16)
                         .SetTextAlignment(TextAlignment.CENTER)
@@ -322,7 +321,7 @@ namespace RamaFemenina.Services
                 table.AddHeaderCell(CrearCeldaHeader("Nombre"));
                 table.AddHeaderCell(CrearCeldaHeader("Área"));
                 table.AddHeaderCell(CrearCeldaHeader("Teléfono"));
-                table.AddHeaderCell(CrearCeldaHeader("Observaciones"));
+                table.AddHeaderCell(CrearCeldaHeader("Estado"));
 
                 foreach (var p in fallecidas)
                 {
@@ -330,7 +329,7 @@ namespace RamaFemenina.Services
                     table.AddCell(CrearCeldaDatos(p.nombre));
                     table.AddCell(CrearCeldaDatos(p.area ?? ""));
                     table.AddCell(CrearCeldaDatos(p.telefono ?? ""));
-                    table.AddCell(CrearCeldaDatos(p.observaciones ?? ""));
+                    table.AddCell(CrearCeldaDatos(p.estado ?? ""));
                 }
 
                 document.Add(table);
@@ -585,7 +584,7 @@ namespace RamaFemenina.Services
 
         #endregion
 
-        #region Métodos Auxiliares para Reporte de Área por Año
+        #region Métodos Auxiliares para Reporte de área por Año
 
         private void AgregarEncabezadoPrincipal(Document document, int anio)
         {
@@ -599,7 +598,7 @@ namespace RamaFemenina.Services
                 .SetVerticalAlignment(VerticalAlignment.MIDDLE);
 
             var titleCell = new Cell()
-                .Add(new Paragraph("Rama femenina contra el cancer®")
+                .Add(new Paragraph("Rama femenina contra el cancer­")
                     .SetFont(_boldFont)
                     .SetFontSize(18)
                     .SetTextAlignment(TextAlignment.CENTER))

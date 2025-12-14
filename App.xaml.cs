@@ -1,158 +1,304 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
-using Microsoft.UI.Xaml.Shapes;
-using Windows.ApplicationModel;
-using Windows.ApplicationModel.Activation;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
+using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore;
 using RamaFemenina.Data;
 using RamaFemenina.Services;
-
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
+using System.IO;
+using DevExpress.XtraReports.Security;
 
 namespace RamaFemenina
 {
-    /// <summary>
-    /// Provides application-specific behavior to supplement the default Application class.
-    /// </summary>
     public partial class App : Application
     {
         private Window? _window;
         private IServiceProvider? _serviceProvider;
+        private static string LogFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "app_error_log.txt");
 
         public Window? CurrentWindow => _window;
-
         public IServiceProvider Services => _serviceProvider!;
 
-        /// <summary>
-        /// Initializes the singleton application object.  This is the first line of authored code
-        /// executed, and as such is the logical equivalent of main() or WinMain().
-        /// </summary>
         public App()
         {
-            InitializeComponent();
-            ConfigureServices();
+            try
+            {
+                // IMPORTANTE: Configurar DevExpress para permitir ejecución de scripts
+                ScriptPermissionManager.GlobalInstance = new ScriptPermissionManager(ExecutionMode.Unrestricted);
+                
+                // Configurar manejo de excepciones no capturadas
+                this.UnhandledException += App_UnhandledException;
+                AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+                TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
+
+                LogInfo("===== INICIO DE APLICACION =====");
+                LogInfo($"Directorio base: {AppDomain.CurrentDomain.BaseDirectory}");
+                LogInfo($"Versión .NET: {Environment.Version}");
+                LogInfo($"OS: {Environment.OSVersion}");
+
+                InitializeComponent();
+                LogInfo("InitializeComponent completado");
+
+                ConfigureServices();
+                LogInfo("Servicios configurados exitosamente");
+                
+                // Verificar conectividad a base de datos
+                Task.Run(async () => await VerifyDatabaseConnection());
+            }
+            catch (Exception ex)
+            {
+                LogError("ERROR CRÍTICO en constructor App:", ex);
+                throw;
+            }
         }
 
         private void ConfigureServices()
         {
+            var services = new ServiceCollection();
+
+            System.Diagnostics.Debug.WriteLine($"[APP] Configurando servicios...");
+            LogInfo("Configurando servicios...");
+
+            // Connection string por defecto
+            string connectionString = "Server=localhost;Database=RamaFemenina;Integrated Security=True;TrustServerCertificate=True;";
+            
+            // Intentar cargar desde appsettings.json
             try
             {
-                var services = new ServiceCollection();
-
-                System.Diagnostics.Debug.WriteLine($"[APP] Configurando servicios...");
-                System.Diagnostics.Debug.WriteLine($"[APP] Base Directory: {AppContext.BaseDirectory}");
-
-                // Configuración
                 var configPath = System.IO.Path.Combine(AppContext.BaseDirectory, "appsettings.json");
-                System.Diagnostics.Debug.WriteLine($"[APP] Buscando appsettings.json en: {configPath}");
+                LogInfo($"Buscando configuración en: {configPath}");
                 
-                if (!System.IO.File.Exists(configPath))
+                if (System.IO.File.Exists(configPath))
                 {
-                    System.Diagnostics.Debug.WriteLine($"[APP] ❌ ERROR: appsettings.json NO ENCONTRADO");
-                    System.Diagnostics.Debug.WriteLine($"[APP] Archivos en directorio:");
-                    foreach (var file in System.IO.Directory.GetFiles(AppContext.BaseDirectory, "*.json"))
+                    LogInfo("appsettings.json encontrado");
+                    
+                    var configuration = new ConfigurationBuilder()
+                        .SetBasePath(AppContext.BaseDirectory)
+                        .AddJsonFile("appsettings.json", optional: true)
+                        .Build();
+
+                    services.AddSingleton<IConfiguration>(configuration);
+
+                    var cs = configuration.GetConnectionString("DefaultConnection");
+                    if (!string.IsNullOrEmpty(cs))
                     {
-                        System.Diagnostics.Debug.WriteLine($"[APP]   - {System.IO.Path.GetFileName(file)}");
+                        connectionString = cs;
+                        LogInfo("Connection string cargado desde appsettings.json");
+                        
+                        // Log de información de la conexión (sin contraseña)
+                        var csWithoutPassword = HidePassword(cs);
+                        LogInfo($"Connection String: {csWithoutPassword}");
+                    }
+                    else
+                    {
+                        LogInfo("No se encontró DefaultConnection en appsettings.json, usando valores por defecto");
                     }
                 }
                 else
                 {
-                    System.Diagnostics.Debug.WriteLine($"[APP] ✅ appsettings.json encontrado");
+                    LogInfo("appsettings.json NO EXISTE, usando configuración por defecto");
+                    LogInfo($"Archivos en directorio base:");
+                    foreach (var file in Directory.GetFiles(AppContext.BaseDirectory))
+                    {
+                        LogInfo($"  - {Path.GetFileName(file)}");
+                    }
                 }
-
-                var configuration = new ConfigurationBuilder()
-                    .SetBasePath(AppContext.BaseDirectory)
-                    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-                    .Build();
-
-                System.Diagnostics.Debug.WriteLine($"[APP] Configuración cargada");
-
-                // Registrar IConfiguration como Singleton para que esté disponible en todos los servicios
-                services.AddSingleton<IConfiguration>(configuration);
-
-                // DbContext
-                var connectionString = configuration.GetConnectionString("DefaultConnection");
-                System.Diagnostics.Debug.WriteLine($"[APP] Connection String leída: {connectionString}");
-
-                if (string.IsNullOrEmpty(connectionString))
-                {
-                    System.Diagnostics.Debug.WriteLine($"[APP] ❌ ERROR: Connection String está vacía");
-                    throw new InvalidOperationException("La cadena de conexión 'DefaultConnection' no está configurada en appsettings.json");
-                }
-
-                services.AddDbContext<RamaFemeninaContext>(options =>
-                {
-                    System.Diagnostics.Debug.WriteLine($"[APP] Configurando DbContext con: {connectionString}");
-                    options.UseSqlServer(connectionString);
-                });
-
-                System.Diagnostics.Debug.WriteLine($"[APP] DbContext configurado");
-
-                // Servicios de Negocio
-                services.AddScoped<AuthenticationService>();
-                services.AddScoped<FacturaService>();
-                System.Diagnostics.Debug.WriteLine($"[APP] ✅ Servicios de negocio registrados");
-
-                // Servicios de Reportes
-                services.AddScoped<CrystalReportService>();  // Reportes Crystal (configuración automática de BD)
-                services.AddScoped<SimpleReportService>();    // Reportes PDF simples con iText
-                services.AddScoped<ReportManager>();          // Gestor unificado de reportes
-                System.Diagnostics.Debug.WriteLine($"[APP] ✅ Servicios de reportes registrados");
-
-                _serviceProvider = services.BuildServiceProvider();
-                System.Diagnostics.Debug.WriteLine($"[APP] ✅ ServiceProvider construido exitosamente");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[APP] ❌❌❌ ERROR EN ConfigureServices ❌❌❌");
-                System.Diagnostics.Debug.WriteLine($"[APP] Tipo: {ex.GetType().Name}");
-                System.Diagnostics.Debug.WriteLine($"[APP] Mensaje: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"[APP] Stack Trace: {ex.StackTrace}");
-                
-                if (ex.InnerException != null)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[APP] Inner Exception: {ex.InnerException.Message}");
-                }
-                
-                throw; // Re-lanzar para que la app no inicie en estado inválido
+                LogError("Error al cargar appsettings.json:", ex);
+                System.Diagnostics.Debug.WriteLine($"[APP] Error: {ex.Message}");
+            }
+
+            // Configurar servicios
+            try
+            {
+                LogInfo("Configurando DbContext...");
+                services.AddDbContext<RamaFemeninaContext>(options =>
+                    options.UseSqlServer(connectionString));
+                LogInfo("DbContext configurado");
+
+                LogInfo("Registrando servicios...");
+                services.AddScoped<AuthenticationService>();
+                services.AddScoped<FacturaService>();
+                services.AddScoped<DataCacheService>(provider => new DataCacheService(provider));
+                services.AddScoped<CrystalReportService>();
+                services.AddScoped<SimpleReportService>();
+                services.AddScoped<ReportManager>();
+                LogInfo("Servicios registrados");
+
+                _serviceProvider = services.BuildServiceProvider();
+                System.Diagnostics.Debug.WriteLine($"[APP] ✅ Servicios configurados");
+                LogInfo("ServiceProvider creado exitosamente");
+            }
+            catch (Exception ex)
+            {
+                LogError("Error al configurar servicios:", ex);
+                throw;
             }
         }
 
-        /// <summary>
-        /// Invoked when the application is launched.
-        /// </summary>
-        /// <param name="args">Details about the launch request and process.</param>
+        private async Task VerifyDatabaseConnection()
+        {
+            try
+            {
+                LogInfo("===== VERIFICACION DE CONEXION A BASE DE DATOS =====");
+                
+                using (var scope = _serviceProvider!.CreateScope())
+                {
+                    var dbContext = scope.ServiceProvider.GetRequiredService<RamaFemeninaContext>();
+                    
+                    LogInfo("Intentando conectar a la base de datos...");
+                    
+                    var canConnect = await dbContext.Database.CanConnectAsync();
+                    
+                    if (canConnect)
+                    {
+                        LogInfo("✅ CONEXION A BASE DE DATOS EXITOSA");
+                        
+                        // Obtener información adicional
+                        var dbName = dbContext.Database.GetDbConnection().Database;
+                        LogInfo($"Base de datos: {dbName}");
+                    }
+                    else
+                    {
+                        LogInfo("❌ NO SE PUEDE CONECTAR A LA BASE DE DATOS");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogError("❌ ERROR AL CONECTAR A LA BASE DE DATOS:", ex);
+                LogInfo("POSIBLES CAUSAS:");
+                LogInfo("1. El servidor SQL Server no está accesible");
+                LogInfo("2. Las credenciales son incorrectas");
+                LogInfo("3. La base de datos no existe");
+                LogInfo("4. Firewall bloqueando la conexión");
+                LogInfo("5. El archivo appsettings.json no se copió correctamente");
+            }
+        }
+
+        private string HidePassword(string connectionString)
+        {
+            try
+            {
+                var builder = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(connectionString);
+                if (!string.IsNullOrEmpty(builder.Password))
+                {
+                    builder.Password = "***";
+                }
+                return builder.ConnectionString;
+            }
+            catch
+            {
+                return connectionString.Contains("Password=") 
+                    ? System.Text.RegularExpressions.Regex.Replace(connectionString, @"Password=[^;]*", "Password=***")
+                    : connectionString;
+            }
+        }
+
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
-            _window = new MainWindow();
-            _window.Activate();
+            try
+            {
+                LogInfo("OnLaunched iniciado");
+                _window = new MainWindow();
+                LogInfo("MainWindow creada");
+                _window.Activate();
+                LogInfo("MainWindow activada - Aplicación iniciada correctamente");
+            }
+            catch (Exception ex)
+            {
+                LogError("ERROR en OnLaunched:", ex);
+                throw;
+            }
         }
 
         public void NavigateToHome(string userName)
         {
-            var homeWindow = new HomeWindow();
-            homeWindow.SetUserName(userName);
-            homeWindow.Activate();
+            try
+            {
+                LogInfo($"Navegando a HomeWindow para usuario: {userName}");
+                var homeWindow = new HomeWindow();
+                homeWindow.SetUserName(userName);
+                homeWindow.Activate();
 
-            // Cerrar la ventana de login
-            _window?.Close();
-            _window = homeWindow;
+                _window?.Close();
+                _window = homeWindow;
+                LogInfo("Navegación a HomeWindow completada");
+            }
+            catch (Exception ex)
+            {
+                LogError("Error al navegar a HomeWindow:", ex);
+                throw;
+            }
         }
+
+        #region Event Handlers para Excepciones No Capturadas
+
+        private void App_UnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
+        {
+            LogError("EXCEPCIÓN NO CAPTURADA (UnhandledException):", e.Exception);
+            e.Handled = true;
+        }
+
+        private void CurrentDomain_UnhandledException(object sender, System.UnhandledExceptionEventArgs e)
+        {
+            if (e.ExceptionObject is Exception ex)
+            {
+                LogError("EXCEPCIÓN NO CAPTURADA (AppDomain):", ex);
+            }
+        }
+
+        private void TaskScheduler_UnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+        {
+            LogError("EXCEPCIÓN NO OBSERVADA (Task):", e.Exception);
+            e.SetObserved();
+        }
+
+        #endregion
+
+        #region Métodos de Logging
+
+        private static void LogInfo(string message)
+        {
+            Log($"[INFO] {message}");
+        }
+
+        private static void LogError(string message, Exception ex)
+        {
+            Log($"[ERROR] {message}");
+            Log($"  Tipo: {ex.GetType().FullName}");
+            Log($"  Mensaje: {ex.Message}");
+            Log($"  Stack Trace: {ex.StackTrace}");
+            
+            if (ex.InnerException != null)
+            {
+                Log($"  Inner Exception: {ex.InnerException.Message}");
+                Log($"  Inner Stack Trace: {ex.InnerException.StackTrace}");
+            }
+        }
+
+        private static void Log(string message)
+        {
+            try
+            {
+                var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
+                var logMessage = $"[{timestamp}] {message}";
+                
+                // Escribir al archivo de log
+                File.AppendAllText(LogFilePath, logMessage + Environment.NewLine);
+                
+                // También escribir a Debug para Visual Studio
+                System.Diagnostics.Debug.WriteLine(logMessage);
+            }
+            catch
+            {
+                // Si falla el logging, no hacer nada para evitar crashes
+            }
+        }
+
+        #endregion
     }
 }

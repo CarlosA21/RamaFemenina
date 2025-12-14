@@ -136,7 +136,7 @@ namespace RamaFemenina.Services
         /// <summary>
         /// Genera reporte de donaciones por paciente (Opción 3)
         /// </summary>
-        public Task<string> GenerarReporteDonacionesPacienteAsync(string idPaciente)
+        public Task<string> GenerarReporteDonacionesPacienteAsync(int idPaciente)
             => GenerarReporteCrystalAsync(3, new ReportParameters { IdPaciente = idPaciente });
 
         /// <summary>

@@ -19,7 +19,7 @@ namespace RamaFemenina.Models
         public int idDonacion { get; set; }
         
         [Required]
-        [Column("Fecha")]
+        [Column("fecha")]
         public DateTime Fecha { get; set; }
         
         [Column("valor")]
@@ -29,26 +29,33 @@ namespace RamaFemenina.Models
         public decimal total { get; set; }
         
         [Required]
-        [Column("idPaciente")]
-        public string idPaciente { get; set; }  // Cambiado de int a string
+        [Column("idpaciente")]
+        public int idPaciente { get; set; }
         
         [Column("procedimiento")]
-        public string procedimiento { get; set; } = string.Empty;
+        [MaxLength(50)]
+        public string? procedimiento { get; set; }
         
         [Column("observacion")]
-        public string observacion { get; set; } = string.Empty;
+        [MaxLength(300)]
+        public string? observacion { get; set; }
         
         [Column("montoSolicitado")]
         public decimal montoSolicitado { get; set; }
 
+        // Propiedad de navegación
+        public virtual Paciente? Paciente { get; set; }
+
         // Propiedades computadas para la UI
+        [NotMapped]
         public string FechaFormateada => Fecha.ToString("dd/MM/yyyy");
 
+        [NotMapped]
         public string EstadoTexto
         {
             get
             {
-                if (total >= montoSolicitado)
+                if (total >= montoSolicitado && montoSolicitado > 0)
                     return "Completado";
                 else if (total > 0)
                     return "Parcial";
@@ -57,11 +64,12 @@ namespace RamaFemenina.Models
             }
         }
 
+        [NotMapped]
         public SolidColorBrush EstadoColor
         {
             get
             {
-                if (total >= montoSolicitado)
+                if (total >= montoSolicitado && montoSolicitado > 0)
                     return new SolidColorBrush(Colors.Green);
                 else if (total > 0)
                     return new SolidColorBrush(Colors.Orange);
@@ -70,8 +78,10 @@ namespace RamaFemenina.Models
             }
         }
 
+        [NotMapped]
         public decimal Diferencia => montoSolicitado - total;
         
+        [NotMapped]
         public decimal PorcentajeCompletado => montoSolicitado > 0 ? (total / montoSolicitado) * 100 : 0;
     }
 }
