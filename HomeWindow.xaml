@@ -62,7 +62,7 @@
 
             <!-- Recibos -->
             <NavigationViewItem 
-                Content="Recibos" 
+                Content="Recibos Y Facturas" 
                 Tag="Recibos">
                 <NavigationViewItem.Icon>
                     <FontIcon Glyph="&#xE8A5;"/>

@@ -23,17 +23,17 @@ namespace RamaFemenina.Services
 {
     /// <summary>
     /// Servicio para generar recibos en PDF con diseño profesional
-    /// Tamaño: Media Carta (8.5" x 5.5") - Horizontal
+    /// Tamaño: Media Carta (8.5" x 5.5") - Horizontal para Epson LX-350
     /// </summary>
     public class ReciboPdfService
     {
-        // Tamaño Media Carta: 8.5" ancho x 5.5" alto (612 x 396 puntos)
-        private static readonly PageSize MEDIA_CARTA = new PageSize(612f, 396f);
+        // Tamaño Media Carta: 5.5" ancho x 8.5" alto (396 x 612 puntos) en vertical
+        private static readonly PageSize MEDIA_CARTA = new PageSize(500f, 612f);
         
-        private const float MARGIN_LEFT = 30f;
-        private const float MARGIN_RIGHT = 30f;
-        private const float MARGIN_TOP = 20f;
-        private const float MARGIN_BOTTOM = 20f;
+        private const float MARGIN_LEFT = 15f;
+        private const float MARGIN_RIGHT = 15f;
+        private const float MARGIN_TOP = 8f;  // Ajustado para aprovechar más el área
+        private const float MARGIN_BOTTOM = 8f;  // Ajustado
 
         /// <summary>
         /// Genera un PDF del recibo y lo retorna como array de bytes
@@ -44,7 +44,7 @@ namespace RamaFemenina.Services
             {
                 using var memoryStream = new MemoryStream();
                 
-                // Crear documento PDF en tamaño Media Carta (8.5" x 5.5")
+                // Crear documento PDF en tamaño Media Carta (5.5" x 8.5")
                 var writer = new PdfWriter(memoryStream);
                 var pdf = new PdfDocument(writer);
                 var document = new Document(pdf, MEDIA_CARTA);
@@ -95,12 +95,27 @@ namespace RamaFemenina.Services
             string appDirectory = AppContext.BaseDirectory;
             System.Diagnostics.Debug.WriteLine($"[ReciboPdfService] 📁 Directorio de aplicación: {appDirectory}");
 
-            // Buscar PNG
+            // PRIORIDAD 1: Buscar icono2.png (logo principal para recibos)
+            string[] posiblesImagesPng = {
+                IOPath.Combine(appDirectory, "Assets", "icono2.png"),
+                IOPath.Combine(appDirectory, "icono2.png")
+            };
+
+            foreach (var rutaImages in posiblesImagesPng)
+            {
+                if (File.Exists(rutaImages))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[ReciboPdfService] ✅ Logo images.png encontrado: {rutaImages}");
+                    return rutaImages;
+                }
+            }
+
+            // PRIORIDAD 2: Buscar otros PNG
             string[] posiblesPng = {
                 IOPath.Combine(appDirectory, "Assets", "icono2.png"),
-                IOPath.Combine(appDirectory, "Assets", "logo.png"),
-                IOPath.Combine(appDirectory, "icono2.png"),
-                IOPath.Combine(appDirectory, "logo.png")
+                IOPath.Combine(appDirectory, "Assets", "logo.ico"),
+                IOPath.Combine(appDirectory, "icono2.ico"),
+                IOPath.Combine(appDirectory, "logo.ico")
             };
 
             foreach (var rutaPng in posiblesPng)
@@ -112,8 +127,9 @@ namespace RamaFemenina.Services
                 }
             }
 
-            // Buscar JPG
+            // PRIORIDAD 3: Buscar JPG
             string[] posiblesJpg = {
+                IOPath.Combine(appDirectory, "Assets", "images.jpg"),
                 IOPath.Combine(appDirectory, "Assets", "icono2.jpg"),
                 IOPath.Combine(appDirectory, "Assets", "logo.jpg"),
                 IOPath.Combine(appDirectory, "icono2.jpg")
@@ -128,7 +144,7 @@ namespace RamaFemenina.Services
                 }
             }
 
-            // Buscar ICO y convertir
+            // PRIORIDAD 4: Buscar ICO y convertir
             string[] posiblesIco = {
                 IOPath.Combine(appDirectory, "Assets", "icono2.ico"),
                 IOPath.Combine(appDirectory, "icono2.ico")
@@ -193,25 +209,54 @@ namespace RamaFemenina.Services
         /// </summary>
         private void AgregarEncabezadoCompacto(Document document, PdfFont fontBold, PdfFont fontRegular, string logoPath)
         {
-            var table = new Table(UnitValue.CreatePercentArray(new float[] { 1f, 3f, 2.5f }));
+            var table = new Table(UnitValue.CreatePercentArray(new float[] { 1.5f, 2.5f }));
             table.SetWidth(UnitValue.CreatePercentValue(100));
 
-            // Logo
+            // Logo principal con texto al lado (images.png o el logo disponible)
             if (!string.IsNullOrEmpty(logoPath) && File.Exists(logoPath))
             {
                 try
                 {
-                    var logo = new PdfImage(ImageDataFactory.Create(logoPath));
-                    logo.ScaleToFit(40f, 40f);
+                    // Crear una tabla interna para alinear logo y texto horizontalmente
+                    var tablaLogoTexto = new Table(UnitValue.CreatePercentArray(new float[] { 0.4f, 1f })).UseAllAvailableWidth();
                     
+                    // Celda del logo
+                    var celdaLogo = new Cell().SetBorder(iText.Layout.Borders.Border.NO_BORDER)
+                        .SetVerticalAlignment(VerticalAlignment.MIDDLE)
+                        .SetPadding(0)
+                        .SetMargin(0);
+                    var logo = new PdfImage(ImageDataFactory.Create(logoPath));
+                    logo.ScaleToFit(50f, 50f);
+                    celdaLogo.Add(logo);
+                    
+                    // Celda del texto al lado del logo
+                    var celdaTexto = new Cell().SetBorder(iText.Layout.Borders.Border.NO_BORDER)
+                        .SetVerticalAlignment(VerticalAlignment.MIDDLE)
+                        .SetPadding(0)
+                        .SetMargin(0)
+                        .SetPaddingLeft(2f);
+                    celdaTexto.Add(new Paragraph("Rama Femenina")
+                        .SetFont(fontBold).SetFontSize(9).SetMargin(0).SetMarginBottom(0.5f));
+                    celdaTexto.Add(new Paragraph("Contra el Cáncer, Inc.")
+                        .SetFont(fontBold).SetFontSize(9).SetMargin(0).SetMarginBottom(1f));
+                    // Mover ligeramente hacia la izquierda para centrar bajo la línea anterior
+                    celdaTexto.Add(new Paragraph("Desde 1951")
+                        .SetFont(fontBold).SetFontSize(8).SetMargin(0).SetMarginLeft(10f));
+                    
+                    // Agregar ambas celdas a la tabla interna
+                    tablaLogoTexto.AddCell(celdaLogo);
+                    tablaLogoTexto.AddCell(celdaTexto);
+                    
+                    // Agregar la tabla interna a la celda principal
                     table.AddCell(new Cell()
-                        .Add(logo)
+                        .Add(tablaLogoTexto)
                         .SetBorder(iText.Layout.Borders.Border.NO_BORDER)
                         .SetVerticalAlignment(VerticalAlignment.MIDDLE)
                         .SetPaddingLeft(0));
                 }
                 catch
                 {
+                    // Si falla, agregar celda vacía
                     table.AddCell(new Cell().SetBorder(iText.Layout.Borders.Border.NO_BORDER));
                 }
             }
@@ -220,38 +265,21 @@ namespace RamaFemenina.Services
                 table.AddCell(new Cell().SetBorder(iText.Layout.Borders.Border.NO_BORDER));
             }
 
-            // Nombre empresa
+            // Datos contacto (derecha)
             table.AddCell(new Cell()
-                .Add(new Paragraph("Rama Femenina")
+                .Add(new Paragraph("Calle Dr. Flavio D. Espinal, esq. A #1, Reparto Oquet, Santiago, R.D.")
                     .SetFont(fontBold)
-                    .SetFontSize(10)
-                    .SetMarginBottom(2))
-                .Add(new Paragraph("Contra el Cáncer, Inc.")
-                    .SetFont(fontBold)
-                    .SetFontSize(10))
-                .Add(new Paragraph("Desde 1964")
-                    .SetFont(fontRegular)
-                    .SetFontSize(7)
-                    .SetMarginTop(2))
-                .SetBorder(iText.Layout.Borders.Border.NO_BORDER)
-                .SetVerticalAlignment(VerticalAlignment.MIDDLE)
-                .SetPaddingLeft(5));
-
-            // Datos contacto
-            table.AddCell(new Cell()
-                .Add(new Paragraph("Calle Pedro Francisco Bonó No. 33, Santiago, R.D.")
-                    .SetFont(fontRegular)
-                    .SetFontSize(7)
+                    .SetFontSize(8.5f)
                     .SetTextAlignment(TextAlignment.RIGHT)
-                    .SetMarginBottom(1))
+                    .SetMarginBottom(0.5f))
                 .Add(new Paragraph("Tels.: 809-582-3939 / 809-226-1178")
-                    .SetFont(fontRegular)
-                    .SetFontSize(7)
+                    .SetFont(fontBold)
+                    .SetFontSize(8.5f)
                     .SetTextAlignment(TextAlignment.RIGHT)
-                    .SetMarginBottom(1))
+                    .SetMarginBottom(0.5f))
                 .Add(new Paragraph("RNC: 4-30-10692-5")
                     .SetFont(fontBold)
-                    .SetFontSize(8)
+                    .SetFontSize(8.5f)
                     .SetTextAlignment(TextAlignment.RIGHT))
                 .SetBorder(iText.Layout.Borders.Border.NO_BORDER)
                 .SetVerticalAlignment(VerticalAlignment.MIDDLE));
@@ -261,8 +289,8 @@ namespace RamaFemenina.Services
             // Línea separadora
             document.Add(new Paragraph()
                 .SetBorderBottom(new iText.Layout.Borders.SolidBorder(ColorConstants.BLACK, 1.5f))
-                .SetMarginTop(5)
-                .SetMarginBottom(5));
+                .SetMarginTop(3)
+                .SetMarginBottom(3));
         }
 
         /// <summary>
@@ -277,32 +305,35 @@ namespace RamaFemenina.Services
             table.AddCell(new Cell()
                 .Add(new Paragraph("Programa Social Para Pacientes Oncológicos")
                     .SetFont(fontBold)
-                    .SetFontSize(10))
+                    .SetFontSize(10))  // Reducido+
+                    .SetTextAlignment(TextAlignment.CENTER)
                 .Add(new Paragraph($"Recibo de Ingreso")
                     .SetFont(fontBold)
-                    .SetFontSize(12)
-                    .SetMarginTop(3))
+                    .SetFontSize(10)  // Reducido
+                    .SetMarginTop(2))  // Reducido
+                     .SetTextAlignment(TextAlignment.CENTER)
+
                 .SetBorder(iText.Layout.Borders.Border.NO_BORDER));
 
             // Número y fecha
             table.AddCell(new Cell()
                 .Add(new Paragraph($"No. {recibo.NumeroRecibo}")
                     .SetFont(fontBold)
-                    .SetFontSize(12)
+                    .SetFontSize(11)  // Reducido
                     .SetTextAlignment(TextAlignment.RIGHT))
                 .Add(new Paragraph($"Fecha: {recibo.FechaFormateada}")
                     .SetFont(fontRegular)
-                    .SetFontSize(9)
+                    .SetFontSize(8.5f)  // Reducido
                     .SetTextAlignment(TextAlignment.RIGHT)
-                    .SetMarginTop(3))
+                    .SetMarginTop(2))  // Reducido
                 .SetBorder(iText.Layout.Borders.Border.NO_BORDER));
 
             document.Add(table);
             
             document.Add(new Paragraph()
                 .SetBorderBottom(new iText.Layout.Borders.SolidBorder(ColorConstants.BLACK, 1f))
-                .SetMarginTop(3)
-                .SetMarginBottom(8));
+                .SetMarginTop(2)  // Reducido
+                .SetMarginBottom(4));  // Reducido
         }
 
         /// <summary>
@@ -312,30 +343,30 @@ namespace RamaFemenina.Services
         {
             // Recibimos de
             document.Add(new Paragraph()
-                .Add(new Text("Hemos recibido de: ").SetFont(fontBold).SetFontSize(9))
-                .Add(new Text(recibo.RecibimosDe ?? "").SetFont(fontRegular).SetFontSize(9))
-                .SetMarginBottom(5));
+                .Add(new Text("Hemos recibido de: ").SetFont(fontBold).SetFontSize(8.5f))  // Reducido
+                .Add(new Text(recibo.RecibimosDe ?? "").SetFont(fontBold).SetFontSize(8.5f))  // Reducido
+                .SetMarginBottom(3));  // Reducido
 
             // Monto
             document.Add(new Paragraph()
-                .Add(new Text("La suma de RD$ ").SetFont(fontBold).SetFontSize(9))
-                .Add(new Text($"{recibo.Monto:N2}").SetFont(fontBold).SetFontSize(11).SetFontColor(new DeviceRgb(0, 100, 0)))
-                .SetMarginBottom(3));
+                .Add(new Text("La suma de RD$ ").SetFont(fontBold).SetFontSize(8.5f))  // Reducido
+                .Add(new Text($"{recibo.Monto:N2}").SetFont(fontBold).SetFontSize(12)) // Reducido
+                .SetMarginBottom(2));  // Reducido
 
             // Monto en letras
             var montoLetras = !string.IsNullOrEmpty(recibo.MontoEnLetras) 
                 ? recibo.MontoEnLetras 
                 : ConvertirNumeroALetras(recibo.Monto);
             document.Add(new Paragraph(montoLetras)
-                .SetFont(fontRegular)
-                .SetFontSize(8)
-                .SetMarginBottom(5));
+                .SetFont(fontBold)
+                .SetFontSize(7.5f)  // Reducido
+                .SetMarginBottom(3));  // Reducido
 
             // Concepto
             document.Add(new Paragraph()
-                .Add(new Text("Por concepto de: ").SetFont(fontBold).SetFontSize(9))
-                .Add(new Text(recibo.Concepto ?? "").SetFont(fontRegular).SetFontSize(9))
-                .SetMarginBottom(8));
+                .Add(new Text("Por concepto de: ").SetFont(fontBold).SetFontSize(8.5f))  // Reducido
+                .Add(new Text(recibo.Concepto ?? "").SetFont(fontBold).SetFontSize(8.5f))  // Reducido
+                .SetMarginBottom(4));  // Reducido
 
             // SECCIÓN DE MÉTODO DE PAGO CON CUADROS (como en la imagen)
             AgregarSeccionMetodoPago(document, recibo, fontBold, fontRegular);
@@ -346,67 +377,46 @@ namespace RamaFemenina.Services
         /// </summary>
         private void AgregarSeccionMetodoPago(Document document, Recibo recibo, PdfFont fontBold, PdfFont fontRegular)
         {
-            // Crear tabla con 2 filas y más columnas para incluir el No. de transferencia
-            var tablaPago = new Table(UnitValue.CreatePercentArray(new float[] { 0.7f, 0.8f, 0.7f, 0.8f, 0.5f, 1.2f, 1.2f, 2f }));
+            // Crear tabla compacta con columnas ajustadas al contenido (sin espacios grandes)
+            var tablaPago = new Table(UnitValue.CreatePercentArray(new float[] { 0.8f, 0.5f, 0.8f, 0.5f, 1.2f, 2f, 0.8f, 2f }));
             tablaPago.SetWidth(UnitValue.CreatePercentValue(100));
+            tablaPago.SetBorder(new iText.Layout.Borders.SolidBorder(ColorConstants.BLACK, 1f));
 
-            // ====== FILA 1: Efectivo | Checkbox | Transf. | Checkbox | No.: | Valor | No. fact. NCF | Valor ======
+            // ====== FILA 1: Efectivo | [X] | Transf. | [ ] | No. fact. NCF: | ______ | (colspan 2 vacío) ======
             
             // Celda "Efectivo"
             tablaPago.AddCell(new Cell()
-                .Add(new Paragraph("Efectivo").SetFont(fontRegular).SetFontSize(8))
+                .Add(new Paragraph("Efectivo").SetFont(fontBold).SetFontSize(8))
                 .SetBorder(iText.Layout.Borders.Border.NO_BORDER)
-                .SetPadding(2)
+                .SetPadding(1)
                 .SetVerticalAlignment(VerticalAlignment.MIDDLE));
 
             // Checkbox Efectivo
             tablaPago.AddCell(new Cell()
                 .Add(CrearCuadroCheckbox(recibo.EsEfectivo))
                 .SetBorder(iText.Layout.Borders.Border.NO_BORDER)
-                .SetPadding(2)
+                .SetPadding(1)
                 .SetVerticalAlignment(VerticalAlignment.MIDDLE));
 
             // Celda "Transf."
             tablaPago.AddCell(new Cell()
-                .Add(new Paragraph("Transf.").SetFont(fontRegular).SetFontSize(8))
+                .Add(new Paragraph("Transf.").SetFont(fontBold).SetFontSize(8))
                 .SetBorder(iText.Layout.Borders.Border.NO_BORDER)
-                .SetPadding(2)
+                .SetPadding(1)
                 .SetVerticalAlignment(VerticalAlignment.MIDDLE));
 
             // Checkbox Transferencia
             tablaPago.AddCell(new Cell()
                 .Add(CrearCuadroCheckbox(recibo.EsTransferencia))
                 .SetBorder(iText.Layout.Borders.Border.NO_BORDER)
-                .SetPadding(2)
-                .SetVerticalAlignment(VerticalAlignment.MIDDLE));
-
-            // No.: (para transferencia)
-            tablaPago.AddCell(new Cell()
-                .Add(new Paragraph("No.:").SetFont(fontRegular).SetFontSize(8))
-                .SetBorder(iText.Layout.Borders.Border.NO_BORDER)
-                .SetPadding(2)
-                .SetVerticalAlignment(VerticalAlignment.MIDDLE));
-
-            // Número de cotejo/comprobante de transferencia con línea
-            // Mostrar el número si es transferencia Y tiene valor
-            var numTransferencia = recibo.EsTransferencia ? (recibo.NumeroCheque ?? "") : "";
-            tablaPago.AddCell(new Cell()
-                .Add(new Paragraph(numTransferencia)
-                    .SetFont(fontRegular)
-                    .SetFontSize(8)
-                    .SetTextAlignment(TextAlignment.CENTER))
-                .SetBorderBottom(new iText.Layout.Borders.SolidBorder(ColorConstants.BLACK, 0.5f))
-                .SetBorderTop(iText.Layout.Borders.Border.NO_BORDER)
-                .SetBorderLeft(iText.Layout.Borders.Border.NO_BORDER)
-                .SetBorderRight(iText.Layout.Borders.Border.NO_BORDER)
-                .SetPadding(2)
+                .SetPadding(1)
                 .SetVerticalAlignment(VerticalAlignment.MIDDLE));
 
             // No. fact. NCF:
             tablaPago.AddCell(new Cell()
-                .Add(new Paragraph("No. fact. NCF:").SetFont(fontRegular).SetFontSize(8))
+                .Add(new Paragraph("No. fact. NCF:").SetFont(fontBold).SetFontSize(8))
                 .SetBorder(iText.Layout.Borders.Border.NO_BORDER)
-                .SetPadding(2)
+                .SetPadding(1)
                 .SetVerticalAlignment(VerticalAlignment.MIDDLE));
 
             // Valor NCF con línea inferior
@@ -415,77 +425,79 @@ namespace RamaFemenina.Services
                 .Add(new Paragraph(ncfValue)
                     .SetFont(fontRegular)
                     .SetFontSize(8)
-                    .SetTextAlignment(TextAlignment.CENTER))
+                    .SetTextAlignment(TextAlignment.LEFT))
                 .SetBorderBottom(new iText.Layout.Borders.SolidBorder(ColorConstants.BLACK, 0.5f))
                 .SetBorderTop(iText.Layout.Borders.Border.NO_BORDER)
                 .SetBorderLeft(iText.Layout.Borders.Border.NO_BORDER)
                 .SetBorderRight(iText.Layout.Borders.Border.NO_BORDER)
-                .SetPadding(2)
+                .SetPadding(1)
                 .SetVerticalAlignment(VerticalAlignment.MIDDLE));
 
-            // ====== FILA 2: Cheque | Checkbox | (colspan) | No.: | Valor | Banco: | Valor ======
+            // Espacios vacíos (colspan 2) para la primera fila
+            tablaPago.AddCell(new Cell(1, 2)
+                .SetBorder(iText.Layout.Borders.Border.NO_BORDER));
+
+            // ====== FILA 2: Cheque | [ ] | No.: | ______ | Banco: | ______ ======
             
             // Celda "Cheque"
             tablaPago.AddCell(new Cell()
-                .Add(new Paragraph("Cheque").SetFont(fontRegular).SetFontSize(8))
+                .Add(new Paragraph("Cheque").SetFont(fontBold).SetFontSize(8))
                 .SetBorder(iText.Layout.Borders.Border.NO_BORDER)
-                .SetPadding(2)
+                .SetPadding(1)
                 .SetVerticalAlignment(VerticalAlignment.MIDDLE));
 
             // Checkbox Cheque
             tablaPago.AddCell(new Cell()
                 .Add(CrearCuadroCheckbox(recibo.EsCheque))
                 .SetBorder(iText.Layout.Borders.Border.NO_BORDER)
-                .SetPadding(2)
+                .SetPadding(1)
                 .SetVerticalAlignment(VerticalAlignment.MIDDLE));
-
-            // Espacio vacío (colspan 2)
-            tablaPago.AddCell(new Cell(1, 2)
-                .SetBorder(iText.Layout.Borders.Border.NO_BORDER));
 
             // No.: (para cheque)
             tablaPago.AddCell(new Cell()
-                .Add(new Paragraph("No.:").SetFont(fontRegular).SetFontSize(8))
+                .Add(new Paragraph("No.:").SetFont(fontBold).SetFontSize(8))
                 .SetBorder(iText.Layout.Borders.Border.NO_BORDER)
-                .SetPadding(2)
+                .SetPadding(1)
                 .SetVerticalAlignment(VerticalAlignment.MIDDLE));
 
             // Número de cheque con línea
-            // Mostrar el número si es cheque Y tiene valor
             var numCheque = recibo.EsCheque ? (recibo.NumeroCheque ?? "") : "";
             tablaPago.AddCell(new Cell()
                 .Add(new Paragraph(numCheque)
                     .SetFont(fontRegular)
                     .SetFontSize(8)
-                    .SetTextAlignment(TextAlignment.CENTER))
+                    .SetTextAlignment(TextAlignment.LEFT))
                 .SetBorderBottom(new iText.Layout.Borders.SolidBorder(ColorConstants.BLACK, 0.5f))
                 .SetBorderTop(iText.Layout.Borders.Border.NO_BORDER)
                 .SetBorderLeft(iText.Layout.Borders.Border.NO_BORDER)
                 .SetBorderRight(iText.Layout.Borders.Border.NO_BORDER)
-                .SetPadding(2)
+                .SetPadding(1)
                 .SetVerticalAlignment(VerticalAlignment.MIDDLE));
 
             // Banco:
             tablaPago.AddCell(new Cell()
-                .Add(new Paragraph("Banco:").SetFont(fontRegular).SetFontSize(8))
+                .Add(new Paragraph("Banco:").SetFont(fontBold).SetFontSize(8))
                 .SetBorder(iText.Layout.Borders.Border.NO_BORDER)
-                .SetPadding(2)
+                .SetPadding(1)
                 .SetVerticalAlignment(VerticalAlignment.MIDDLE));
 
             // Nombre del banco con línea
-            // Mostrar el banco si tiene valor (aplica para cheques y transferencias)
             var banco = !string.IsNullOrEmpty(recibo.Banco) ? recibo.Banco : "";
             tablaPago.AddCell(new Cell()
                 .Add(new Paragraph(banco)
-                    .SetFont(fontRegular)
+                    .SetFont(fontBold)
                     .SetFontSize(8)
-                    .SetTextAlignment(TextAlignment.CENTER))
+                    .SetTextAlignment(TextAlignment.LEFT))
                 .SetBorderBottom(new iText.Layout.Borders.SolidBorder(ColorConstants.BLACK, 0.5f))
                 .SetBorderTop(iText.Layout.Borders.Border.NO_BORDER)
                 .SetBorderLeft(iText.Layout.Borders.Border.NO_BORDER)
                 .SetBorderRight(iText.Layout.Borders.Border.NO_BORDER)
-                .SetPadding(2)
+                .SetPadding(1)
                 .SetVerticalAlignment(VerticalAlignment.MIDDLE));
+
+            // Espacios vacíos finales (colspan 2) - alineación con fila superior
+            tablaPago.AddCell(new Cell(1, 2)
+                .SetBorder(iText.Layout.Borders.Border.NO_BORDER));
 
             document.Add(tablaPago);
         }
@@ -522,8 +534,8 @@ namespace RamaFemenina.Services
         /// </summary>
         private void AgregarPieRecibo(Document document, PdfFont fontBold, string logoPath = null)
         {
-            // Espacio antes del pie
-            document.Add(new Paragraph("\n\n"));
+            // Espacio antes del pie (más espacio para bajar la firma)
+            document.Add(new Paragraph("\n\n"));  // Tres saltos de línea para más separación
 
             // Tabla para la firma alineada a la derecha
             var tablaFirma = new Table(1);

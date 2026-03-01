@@ -252,8 +252,8 @@
                                           FontWeight="Bold"
                                           Foreground="#eb3349"/>
                             </StackPanel>
-                        </StackPanel>
-                    </Grid>
+                        </Grid>
+                    </Border>
                 </Border>
 
                  Balance 
@@ -377,6 +377,21 @@
                                     </StackPanel>
                                 </Button>
 
+                                <!-- Botón Configurar Secuencia NCF (solo visible en modo Facturas) -->
+                                <Button x:Name="btnConfigurarSecuenciaNcf"
+                                       Click="BtnConfigurarSecuenciaNcf_Click"
+                                       Style="{StaticResource ModernButton}"
+                                       Background="#6B46C1"
+                                       Foreground="White"
+                                       BorderThickness="0"
+                                       Visibility="Collapsed"
+                                       ToolTipService.ToolTip="Configurar secuencia automática de números NCF">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="&#xE8B8;" FontSize="14"/>
+                                        <TextBlock Text="Config. NCF" FontSize="13"/>
+                                    </StackPanel>
+                                </Button>
+
                                 <Button x:Name="btnImprimir"
                                        Click="BtnImprimirRecibo_Click"
                                        Style="{StaticResource ModernButton}"
@@ -418,7 +433,6 @@
                                     <TextBlock x:Name="TipoDocumentoText" Text="📄 Recibos" FontWeight="SemiBold"/>
                                 </StackPanel>
                             </ToggleButton>
-
                             <ComboBox x:Name="TipoReciboCombo"
                                      Header="Filtro"
                                      MinWidth="140"
@@ -428,7 +442,6 @@
                                 <ComboBoxItem Content="📈 Ingreso"/>
                                 <ComboBoxItem Content="📉 Egreso"/>
                             </ComboBox>
-
                             <ComboBox x:Name="OrdenarCombo"
                                      Header="Ordenar por"
                                      MinWidth="180"
@@ -439,7 +452,7 @@
                                 <ComboBoxItem Content="💰 Monto (Mayor)"/>
                                 <ComboBoxItem Content="💰 Monto (Menor)"/>
                                 <ComboBoxItem Content="🔢 Número de Recibo"/>
-                            </ComboBox>
+                            </ComboBox> 
 
                             <Border VerticalAlignment="Bottom" 
                                    Background="{ThemeResource SystemFillColorSolidNeutralBackgroundBrush}"
@@ -467,14 +480,6 @@
                                 <ListView x:Name="RecibosListView"
                                          SelectionMode="Single"
                                          SelectionChanged="RecibosListView_SelectionChanged">
-                                    <ListView.ItemContainerStyle>
-                                        <Style TargetType="ListViewItem">
-                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                            <Setter Property="Padding" Value="12"/>
-                                            <Setter Property="Margin" Value="0,0,0,8"/>
-                                        </Style>
-                                    </ListView.ItemContainerStyle>
-
                                     <ListView.ItemTemplate>
                                         <DataTemplate x:DataType="models:Recibo">
                                             <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
@@ -566,7 +571,7 @@
                                                         </Grid>
                                                     </StackPanel>
 
-                                                    <!-- Monto -->
+                                                    <!-- Monto 
                                                     <StackPanel Grid.Column="3" 
                                                                VerticalAlignment="Center"
                                                                HorizontalAlignment="Right"
@@ -577,7 +582,7 @@
                                                             <Run Text="RD$ "/>
                                                             <Run Text="{x:Bind Monto}" Foreground="#11998e"/>
                                                         </TextBlock>
-                                                    </StackPanel>
+                                                    </StackPanel>-->
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>
@@ -732,19 +737,35 @@
         <Grid x:Name="LoadingOverlay"
              Background="#80000000"
              Visibility="Collapsed">
-            <StackPanel HorizontalAlignment="Center"
-                       VerticalAlignment="Center"
-                       Spacing="16">
-                <ProgressRing x:Name="LoadingIndicator"
-                             IsActive="False"
-                             Width="60"
-                             Height="60"
-                             Foreground="White"/>
-                <TextBlock Text="Cargando recibos..."
-                          Foreground="White"
-                          FontSize="16"
-                          HorizontalAlignment="Center"/>
-            </StackPanel>
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                   CornerRadius="16"
+                   Padding="40,32"
+                   MaxWidth="400"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center">
+                <StackPanel Spacing="20">
+                    <ProgressRing x:Name="LoadingIndicator"
+                                 IsActive="False"
+                                 Width="60"
+                                 Height="60"
+                                 Foreground="{StaticResource ReciboGradient}"
+                                 HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="LoadingText"
+                              Text="Cargando recibos..."
+                              FontSize="16"
+                              FontWeight="SemiBold"
+                              HorizontalAlignment="Center"
+                              TextAlignment="Center"
+                              TextWrapping="Wrap"/>
+                    <TextBlock x:Name="LoadingSubtext"
+                              Text="Por favor espere"
+                              FontSize="13"
+                              Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                              HorizontalAlignment="Center"
+                              TextAlignment="Center"
+                              Visibility="Collapsed"/>
+                </StackPanel>
+            </Border>
         </Grid>
     </Grid>
 </Page>

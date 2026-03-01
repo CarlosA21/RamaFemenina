@@ -383,14 +383,6 @@
                                 <ListView x:Name="DonacionesListView"
                                          SelectionMode="Single"
                                          SelectionChanged="DonacionesListView_SelectionChanged">
-                                    <ListView.ItemContainerStyle>
-                                        <Style TargetType="ListViewItem">
-                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                            <Setter Property="Padding" Value="12"/>
-                                            <Setter Property="Margin" Value="0,0,0,8"/>
-                                        </Style>
-                                    </ListView.ItemContainerStyle>
-
                                     <ListView.ItemTemplate>
                                         <DataTemplate x:DataType="models:Donaciones">
                                             <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
@@ -460,7 +452,7 @@
                                                         </Grid>
                                                     </StackPanel>
 
-                                                    <!-- Montos -->
+                                                    <!-- Montos 
                                                     <StackPanel Grid.Column="3" 
                                                                VerticalAlignment="Center"
                                                                HorizontalAlignment="Right"
@@ -476,7 +468,7 @@
                                                             <Run Text="RD$ "/>
                                                             <Run Text="{x:Bind total}" Foreground="#11998e"/>
                                                         </TextBlock>
-                                                    </StackPanel>
+                                                    </StackPanel>-->
 
                                                     <!-- Botones de Acción -->
                                                     <StackPanel Grid.Column="4" 

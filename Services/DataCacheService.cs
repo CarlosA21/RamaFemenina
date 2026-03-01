@@ -99,7 +99,7 @@ namespace RamaFemenina.Services
                 }
 
                 var pacientes = await query
-                    .OrderBy(p => p.nombre)
+                    .OrderByDescending(p => p.idpaciente)
                     .Skip((page - 1) * pageSize)
                     .Take(pageSize)
                     .ToListAsync(cancellationToken);
@@ -348,7 +348,7 @@ namespace RamaFemenina.Services
                 }
 
                 return await query
-                    .OrderBy(c => c.nombre)
+                    .OrderByDescending(c => c.idCliente)
                     .Skip((page - 1) * pageSize)
                     .Take(pageSize)
                     .ToListAsync(cancellationToken);

@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Navigation;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,7 +22,6 @@ using RamaFemenina.Services;
 using RamaFemenina.Extensions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.UI.Xaml.Media;
-using RamaFemenina.Services;
 
 namespace RamaFemenina;
 
@@ -29,6 +29,7 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly DataCacheService _cacheService;
+    private readonly NcfSequenceService _ncfSequenceService;
     private bool _isReciboSelected;
     private bool _isLoading;
     private Timer _searchDelayTimer;
@@ -63,6 +64,21 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
         public string MetodoPago { get; set; } = string.Empty;
         public string? NumeroCheque { get; set; }
         public string? Banco { get; set; }
+        // Nuevo: indica si la factura será gravada (de lo contrario, exenta)
+        public bool EsGravada { get; set; } = false;
+    }
+
+    // Clase extendida de Recibo para facturas NCF con datos adicionales de la BD
+    public class ReciboFacturaNcf : Recibo
+    {
+        public decimal Exento { get; set; }
+        public decimal Gravado { get; set; }
+        public decimal Itbis { get; set; }
+        public string NCFCompleto { get; set; } = string.Empty;
+        public int? TCFNumerico { get; set; }
+        public DateTime ValidaHasta { get; set; }
+        public string DireccionCliente { get; set; } = string.Empty;
+        public string TelefonoCliente { get; set; } = string.Empty;
     }
     
     // Configuración de posiciones de impresión (en milímetros)
@@ -107,8 +123,11 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
                 // Actualizar visibilidad del indicador de carga
                 DispatcherQueue.TryEnqueue(() =>
                 {
+                    if (this.FindName("LoadingOverlay") is Grid loadingOverlay)
+                        loadingOverlay.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
+                        
                     if (this.FindName("LoadingIndicator") is ProgressRing loadingIndicator)
-                        loadingIndicator.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
+                        loadingIndicator.IsActive = value;
                 });
             }
         }
@@ -175,6 +194,7 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
         var app = Application.Current as App;
         _serviceProvider = app!.Services;
         _cacheService = app.Services.GetRequiredService<DataCacheService>();
+        _ncfSequenceService = new NcfSequenceService();
         
         // Inicialización de timer para búsqueda con delay
         _searchDelayTimer = new Timer(PerformSearch, null, Timeout.Infinite, Timeout.Infinite);
@@ -449,6 +469,10 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
             TipoDocumentoIcon.Glyph = "\uE8A1";
             SearchBox.PlaceholderText = "Buscar recibos...";
             
+            // Ocultar botón de configurar secuencia NCF
+            if (this.FindName("btnConfigurarSecuenciaNcf") is Button btnConfigNcf)
+                btnConfigNcf.Visibility = Visibility.Collapsed;
+            
             // Actualizar filtros para recibos
             TipoReciboCombo.Items.Clear();
             TipoReciboCombo.Items.Add(new ComboBoxItem { Content = "?? Todos" });
@@ -473,6 +497,10 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
             TipoDocumentoText.Text = "?? Facturas NCF";
             TipoDocumentoIcon.Glyph = "\uE8C7";
             SearchBox.PlaceholderText = "Buscar facturas NCF...";
+            
+            // Mostrar botón de configurar secuencia NCF
+            if (this.FindName("btnConfigurarSecuenciaNcf") is Button btnConfigNcf)
+                btnConfigNcf.Visibility = Visibility.Visible;
             
             // Actualizar filtros para facturas
             TipoReciboCombo.Items.Clear();
@@ -556,22 +584,42 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
                 .ToListAsync();
             
             // Convertir facturas a formato de recibo para reutilizar la UI
-            var recibosVirtuales = facturas.Select(f => new Recibo
+            var recibosVirtuales = facturas.Select(f =>
             {
-                IdRecibo = f.IdFactura,
-                NumeroRecibo = f.NoFactura,
-                TipoRecibo = "Factura NCF",
-                Fecha = f.Fecha,
-                RecibimosDe = f.Cliente?.nombre ?? "Sin cliente",
-                Monto = f.APagar,
-                Concepto = "DONATIVO PARA PACIENTES ONCOLOGICOS DE ESCASOS RECURSOS.",
-                EsEfectivo = f.EsEfectivo,
-                EsCheque = f.EsCheque,
-                EsTransferencia = f.EsCredito,
-                NumeroCheque = f.NumeroCheque,
-                Banco = f.Banco,
-                Cedula = f.Cliente?.rnc ?? ""
-            }).ToList();
+                // Log de valores para debug
+                System.Diagnostics.Debug.WriteLine($"[CargarFacturas] Factura {f.IdFactura}: Exento={f.Exento}, Gravado={f.Gravado}, Itbis={f.Itbis}, APagar={f.APagar}");
+                
+                // Construir NCF completo
+                var tipoComprobante = f.TCFNumerico == 14 ? "B14" : 
+                                     f.TCFNumerico == 15 ? "B15" : "B01";
+                var ncfCompleto = f.NCFNumerico.HasValue ? $"{tipoComprobante}{f.NCFNumerico:D8}" : "Sin NCF";
+                
+                return new ReciboFacturaNcf
+                {
+                    IdRecibo = f.IdFactura,
+                    NumeroRecibo = f.NoFactura,
+                    TipoRecibo = "Factura NCF",
+                    Fecha = f.Fecha,
+                    RecibimosDe = f.Cliente?.nombre ?? "Sin cliente",
+                    Monto = f.APagar,
+                    Concepto = "DONATIVO PARA PACIENTES ONCOLOGICOS DE ESCASOS RECURSOS.",
+                    EsEfectivo = f.EsEfectivo,
+                    EsCheque = f.EsCheque,
+                    EsTransferencia = f.EsCredito,
+                    NumeroCheque = f.NumeroCheque,
+                    Banco = f.Banco,
+                    Cedula = f.Cliente?.rnc ?? "",
+                    // ? NUEVOS CAMPOS: Guardar valores de la BD
+                    Exento = f.Exento,
+                    Gravado = f.Gravado,
+                    Itbis = f.Itbis,
+                    NCFCompleto = ncfCompleto,
+                    TCFNumerico = f.TCFNumerico,
+                    ValidaHasta = f.FechaVencimiento ?? DateTime.Now.AddMonths(1),
+                    DireccionCliente = f.Cliente?.direccion ?? "",
+                    TelefonoCliente = f.Cliente?.telefono ?? ""
+                };
+            }).Cast<Recibo>().ToList();
             
             // Actualizar colección
             DispatcherQueue.TryEnqueue(() =>
@@ -728,6 +776,23 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
     {
         try
         {
+            // Si estamos en modo Facturas NCF, crear una nueva factura NCF desde cero
+            if (_tipoDocumentoActual == TipoDocumento.Facturas)
+            {
+                var baseRecibo = new Recibo
+                {
+                    TipoRecibo = "Factura NCF",
+                    Fecha = DateTime.Now,
+                    RecibimosDe = string.Empty,
+                    Cedula = string.Empty,
+                    Monto = 0m,
+                    Concepto = "DONATIVO PARA PACIENTES ONCOLOGICOS DE ESCASOS RECURSOS."
+                };
+
+                await MostrarDialogoFacturaNcf(baseRecibo);
+                return;
+            }
+
             var resultado = await MostrarDialogoRecibo(null);
             if (resultado != null)
             {
@@ -783,6 +848,12 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
             if (reciboSeleccionado == null)
             {
                 await ShowInfoDialog("Error", "Debe seleccionar un recibo");
+                return;
+            }
+            // En modo Facturas NCF, reutilizar el diálogo de Factura NCF con los datos del elemento seleccionado
+            if (_tipoDocumentoActual == TipoDocumento.Facturas)
+            {
+                await MostrarDialogoFacturaNcf(reciboSeleccionado);
                 return;
             }
 
@@ -904,7 +975,7 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
 
             var confirmDialog = new ContentDialog
             {
-                Title = "Confirmar Eliminación",
+                Title = _tipoDocumentoActual == TipoDocumento.Facturas ? "Confirmar Eliminación de Factura NCF" : "Confirmar Eliminación",
                 Content = messagePanel,
                 PrimaryButtonText = "Eliminar",
                 CloseButtonText = "Cancelar",
@@ -920,32 +991,50 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
                 {
                     using var scope = _serviceProvider.CreateScope();
                     using var context = scope.ServiceProvider.GetRequiredService<RamaFemeninaContext>();
-                    
-                    var recibo = await context.Recibos.FindAsync(reciboSeleccionado.IdRecibo).ConfigureAwait(false);
-                    if (recibo != null)
+
+                    if (_tipoDocumentoActual == TipoDocumento.Facturas)
                     {
-                        context.Recibos.Remove(recibo);
-                        await context.SaveChangesAsync().ConfigureAwait(false);
-                        
-                        _cacheService.InvalidateCache("recibos");
-                        
-                        // Recargar la página en el UI thread
-                        await DispatcherQueue.EnqueueAsync(async () =>
+                        // Borrar factura NCF por IdFactura
+                        var factura = await context.Facturas.FindAsync(reciboSeleccionado.IdRecibo).ConfigureAwait(false);
+                        if (factura != null)
                         {
-                            await LoadPageAsync(CurrentPage);
-                            
-                            // Pequeño delay para asegurar que la carga se completó
-                            await Task.Delay(100);
-                            
-                            await ShowInfoDialog("Éxito", "Recibo eliminado correctamente");
-                        });
+                            context.Facturas.Remove(factura);
+                            await context.SaveChangesAsync().ConfigureAwait(false);
+
+                            // Recargar lista de facturas
+                            await DispatcherQueue.EnqueueAsync(async () =>
+                            {
+                                await CargarFacturas();
+                                await Task.Delay(100);
+                                await ShowInfoDialog("Éxito", "Factura NCF eliminada correctamente");
+                            });
+                        }
+                    }
+                    else
+                    {
+                        // Comportamiento original: borrar recibo
+                        var recibo = await context.Recibos.FindAsync(reciboSeleccionado.IdRecibo).ConfigureAwait(false);
+                        if (recibo != null)
+                        {
+                            context.Recibos.Remove(recibo);
+                            await context.SaveChangesAsync().ConfigureAwait(false);
+
+                            _cacheService.InvalidateCache("recibos");
+
+                            await DispatcherQueue.EnqueueAsync(async () =>
+                            {
+                                await LoadPageAsync(CurrentPage);
+                                await Task.Delay(100);
+                                await ShowInfoDialog("Éxito", "Recibo eliminado correctamente");
+                            });
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
                     await DispatcherQueue.EnqueueAsync(async () =>
                     {
-                        await ShowInfoDialog("Error", $"Error al eliminar recibo: {ex.Message}");
+                        await ShowInfoDialog("Error", $"Error al eliminar: {ex.Message}");
                     });
                 }
             }
@@ -1520,13 +1609,27 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
 
         System.Diagnostics.Debug.WriteLine($"[DEBUG] Documento seleccionado: {documentoSeleccionado.NumeroRecibo}");
         
-        if (_tipoDocumentoActual == TipoDocumento.Recibos)
+        // Mostrar indicador de carga
+        MostrarLoadingConMensaje(
+            _tipoDocumentoActual == TipoDocumento.Recibos ? "Generando recibo..." : "Generando factura NCF...",
+            "Por favor espere mientras se genera el PDF"
+        );
+        
+        try
         {
-            await ImprimirReciboDirecto();
+            if (_tipoDocumentoActual == TipoDocumento.Recibos)
+            {
+                await ImprimirReciboDirecto();
+            }
+            else
+            {
+                await ImprimirFacturaNcfDirecto(documentoSeleccionado);
+            }
         }
-        else
+        finally
         {
-            await ImprimirFacturaNcfDirecto(documentoSeleccionado);
+            // Ocultar indicador de carga
+            OcultarLoading();
         }
         
         System.Diagnostics.Debug.WriteLine("[DEBUG] BtnImprimirRecibo_Click - FIN");
@@ -1545,8 +1648,6 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
 
         try
         {
-            IsLoading = true;
-
             System.Diagnostics.Debug.WriteLine("[DEBUG] Generando PDF con iText7...");
             
             var pdfService = new ReciboPdfService();
@@ -1570,7 +1671,6 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
         }
         finally
         {
-            IsLoading = false;
             System.Diagnostics.Debug.WriteLine("[DEBUG] ImprimirReciboDirecto - FIN");
         }
     }
@@ -1581,9 +1681,73 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
 
         try
         {
-            IsLoading = true;
+            // Verificar si es una ReciboFacturaNcf con datos ya cargados
+            if (facturaVirtual is ReciboFacturaNcf facturaConDatos)
+            {
+                System.Diagnostics.Debug.WriteLine("[DEBUG] ? Usando datos ya cargados desde CargarFacturas()");
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] NCF: {facturaConDatos.NCFCompleto}");
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] Exento: {facturaConDatos.Exento}");
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] Gravado: {facturaConDatos.Gravado}");
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] Itbis: {facturaConDatos.Itbis}");
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] Monto: {facturaConDatos.Monto}");
 
-            // Obtener la factura real de la base de datos usando el IdRecibo que mapea a IdFactura
+                // Validación: si todos están en cero pero hay monto, asumir exento
+                decimal exento = facturaConDatos.Exento;
+                decimal gravado = facturaConDatos.Gravado;
+                decimal itbis = facturaConDatos.Itbis;
+                decimal monto = facturaConDatos.Monto;
+
+                if (exento == 0 && gravado == 0 && itbis == 0 && monto > 0)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[DEBUG] ?? Valores en cero detectados, usando Monto como Exento");
+                    exento = monto;
+                }
+
+                // Crear objeto FacturaNcf directamente con los datos ya cargados
+                var facturaNcf = new FacturaNcf
+                {
+                    NCF = facturaConDatos.NCFCompleto,
+                    Fecha = facturaConDatos.Fecha,
+                    ValidaHasta = facturaConDatos.ValidaHasta,
+                    RncCliente = facturaConDatos.Cedula ?? "Sin RNC",
+                    NombreCliente = facturaConDatos.RecibimosDe?.ToUpper() ?? "CLIENTE SIN NOMBRE",
+                    TelefonoCliente = facturaConDatos.TelefonoCliente,
+                    DireccionCliente = facturaConDatos.DireccionCliente?.ToUpper() ?? "DIRECCIÓN NO ESPECIFICADA",
+                    Concepto = facturaConDatos.Concepto ?? "DONATIVO PARA PACIENTES ONCOLOGICOS DE ESCASOS RECURSOS.",
+                    Monto = monto,
+                    Exento = exento,
+                    Gravado = gravado,
+                    Itbis = itbis,
+                    EsEfectivo = facturaConDatos.EsEfectivo,
+                    EsCheque = facturaConDatos.EsCheque,
+                    EsCredito = facturaConDatos.EsTransferencia,
+                    NumeroCheque = facturaConDatos.NumeroCheque,
+                    Banco = facturaConDatos.Banco
+                };
+
+                // Generar y abrir PDF
+                var pdfService = new FacturaNcfPdfService();
+                await pdfService.AbrirFacturaPdfAsync(facturaNcf);
+
+                System.Diagnostics.Debug.WriteLine("[DEBUG] ? Factura NCF PDF generado exitosamente con datos precargados");
+
+                await ShowInfoDialog("Éxito",
+                    "Factura NCF generada correctamente.\n\n" +
+                    $"NCF: {facturaNcf.NCF}\n" +
+                    $"Cliente: {facturaNcf.NombreCliente}\n" +
+                    $"Exento: RD$ {facturaNcf.Exento:N2}\n" +
+                    $"Gravado: RD$ {facturaNcf.Gravado:N2}\n" +
+                    $"Itbis: RD$ {facturaNcf.Itbis:N2}\n" +
+                    $"Total: RD$ {facturaNcf.Monto:N2}\n\n" +
+                    "El PDF se ha abierto en el visor predeterminado.\n" +
+                    "Desde ahí puede imprimirlo usando Ctrl+P.");
+
+                return true;
+            }
+
+            // Fallback: obtener de BD si no es ReciboFacturaNcf (no debería pasar, pero por seguridad)
+            System.Diagnostics.Debug.WriteLine("[DEBUG] ?? FALLBACK: Obteniendo datos desde BD...");
+            
             using var scope = _serviceProvider.CreateScope();
             using var context = scope.ServiceProvider.GetRequiredService<RamaFemeninaContext>();
             
@@ -1603,12 +1767,33 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
                 return false;
             }
 
-            System.Diagnostics.Debug.WriteLine($"[DEBUG] Generando PDF para Factura NCF: {facturaReal.NCF}");
+            // Log para debug de valores desde BD
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] Factura ID: {facturaReal.IdFactura}");
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] Exento BD: {facturaReal.Exento}");
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] Gravado BD: {facturaReal.Gravado}");
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] Itbis BD: {facturaReal.Itbis}");
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] APagar BD: {facturaReal.APagar}");
 
-            // Crear objeto FacturaNcf con datos reales
-            var facturaNcf = new FacturaNcf
+            // Construir NCF completo
+            var tipoComprobante = facturaReal.TCFNumerico == 14 ? "B14" : 
+                                 facturaReal.TCFNumerico == 15 ? "B15" : "B01";
+            var ncfCompleto = $"{tipoComprobante}{facturaReal.NCFNumerico:D8}";
+
+            // Validar valores
+            decimal exentoBD = facturaReal.Exento;
+            decimal gravadoBD = facturaReal.Gravado;
+            decimal itbisBD = facturaReal.Itbis;
+            decimal montoBD = facturaReal.APagar;
+
+            if (exentoBD == 0 && gravadoBD == 0 && itbisBD == 0 && montoBD > 0)
             {
-                NCF = facturaReal.NCF ?? "Sin NCF",
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] Valores BD en cero, usando APagar como Exento");
+                exentoBD = montoBD;
+            }
+
+            var facturaNcfBD = new FacturaNcf
+            {
+                NCF = ncfCompleto,
                 Fecha = facturaReal.Fecha,
                 ValidaHasta = facturaReal.FechaVencimiento ?? DateTime.Now.AddMonths(1),
                 RncCliente = facturaReal.Cliente?.rnc ?? "Sin RNC",
@@ -1616,7 +1801,10 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
                 TelefonoCliente = facturaReal.Cliente?.telefono ?? "",
                 DireccionCliente = facturaReal.Cliente?.direccion?.ToUpper() ?? "DIRECCIÓN NO ESPECIFICADA",
                 Concepto = facturaVirtual.Concepto ?? "DONATIVO PARA PACIENTES ONCOLOGICOS DE ESCASOS RECURSOS.",
-                Monto = facturaReal.APagar,
+                Monto = montoBD,
+                Exento = exentoBD,
+                Gravado = gravadoBD,
+                Itbis = itbisBD,
                 EsEfectivo = facturaReal.EsEfectivo,
                 EsCheque = facturaReal.EsCheque,
                 EsCredito = facturaReal.EsCredito,
@@ -1624,19 +1812,20 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
                 Banco = facturaReal.Banco
             };
 
-            // Generar y abrir PDF usando FacturaNcfPdfService
-            var pdfService = new FacturaNcfPdfService();
-            await pdfService.AbrirFacturaPdfAsync(facturaNcf);
+            var pdfServiceBD = new FacturaNcfPdfService();
+            await pdfServiceBD.AbrirFacturaPdfAsync(facturaNcfBD);
 
-            System.Diagnostics.Debug.WriteLine("[DEBUG] Factura NCF PDF generado y abierto exitosamente");
+            System.Diagnostics.Debug.WriteLine("[DEBUG] ? Factura NCF PDF generado desde BD fallback");
 
             await ShowInfoDialog("Éxito",
                 "Factura NCF generada correctamente.\n\n" +
-                $"NCF: {facturaNcf.NCF}\n" +
-                $"Cliente: {facturaNcf.NombreCliente}\n" +
-                $"Monto: RD$ {facturaNcf.Monto:N2}\n\n" +
+                $"NCF: {facturaNcfBD.NCF}\n" +
+                $"Cliente: {facturaNcfBD.NombreCliente}\n" +
+                $"Exento: RD$ {facturaNcfBD.Exento:N2}\n" +
+                $"Gravado: RD$ {facturaNcfBD.Gravado:N2}\n" +
+                $"Itbis: RD$ {facturaNcfBD.Itbis:N2}\n" +
+                $"Total: RD$ {facturaNcfBD.Monto:N2}\n\n" +
                 "El PDF se ha abierto en el visor predeterminado.\n" +
-                "Tamaño: Media Carta (8.5\" x 5.5\")\n\n" +
                 "Desde ahí puede imprimirlo usando Ctrl+P.");
 
             return true;
@@ -1649,7 +1838,6 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
         }
         finally
         {
-            IsLoading = false;
             System.Diagnostics.Debug.WriteLine("[DEBUG] ImprimirFacturaNcfDirecto - FIN");
         }
     }
@@ -1666,16 +1854,107 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
         await MostrarDialogoFacturaNcf(reciboSeleccionado);
     }
 
+    private async void BtnConfigurarSecuenciaNcf_Click(object sender, RoutedEventArgs e)
+    {
+        await MostrarDialogoConfiguracionSecuencia();
+    }
+
     private async Task MostrarDialogoFacturaNcf(Recibo reciboSeleccionado)
     {
         var formPanel = new StackPanel { Spacing = 12 };
 
+        // Tipo de comprobante NCF
+        var cmbTipoComprobante = new ComboBox
+        {
+            Header = "Tipo de Comprobante NCF",
+            MinWidth = 150
+        };
+        cmbTipoComprobante.Items.Add(new ComboBoxItem { Content = "B01 - Crédito Fiscal", Tag = "B01" });
+        cmbTipoComprobante.Items.Add(new ComboBoxItem { Content = "B14 - Regímenes Especiales", Tag = "B14" });
+        cmbTipoComprobante.Items.Add(new ComboBoxItem { Content = "B15 - Factura Gubernamental", Tag = "B15" });
+        cmbTipoComprobante.SelectedIndex = 0;
+
+        var txtNCFNumero = new TextBox
+        {
+            Header = "Número NCF (sin prefijo) *",
+            PlaceholderText = "Ingrese el número correlativo",
+            MaxLength = 15
+        };
+
+        // Panel para botones de secuencia NCF
+        var panelSecuenciaBotones = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        
+        var btnUsarSecuencia = new Button
+        {
+            Content = "?? Usar Secuencia Auto",
+            Height = 32
+        };
+
+        var txtEstadoSecuencia = new TextBlock
+        {
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(8, 0, 0, 0),
+            FontSize = 11,
+            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray)
+        };
+
+        // Actualizar estado de la secuencia
+        void ActualizarEstadoSecuencia()
+        {
+            var (activa, actual, inicio, fin, restantes) = _ncfSequenceService.ObtenerEstado();
+            if (activa)
+            {
+                txtEstadoSecuencia.Text = $"?? Siguiente: {actual} (Restantes: {restantes})";
+                txtEstadoSecuencia.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Green);
+                btnUsarSecuencia.IsEnabled = true;
+            }
+            else
+            {
+                txtEstadoSecuencia.Text = "?? Secuencia inactiva - Use el botón 'Config. NCF' en la barra superior";
+                txtEstadoSecuencia.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Orange);
+                btnUsarSecuencia.IsEnabled = false;
+            }
+        }
+
+        // Botón: Usar secuencia
+        btnUsarSecuencia.Click += (s, e) =>
+        {
+            var siguiente = _ncfSequenceService.ObtenerSiguienteNumero();
+            if (siguiente.HasValue)
+            {
+                txtNCFNumero.Text = siguiente.Value.ToString();
+                ActualizarEstadoSecuencia();
+            }
+            else
+            {
+                _ = ShowInfoDialog("Secuencia Agotada", 
+                    "La secuencia de NCF ha llegado a su fin.\n\n" +
+                    "Use el botón 'Config. NCF' en la barra superior para configurar una nueva secuencia.");
+            }
+        };
+
+        panelSecuenciaBotones.Children.Add(btnUsarSecuencia);
+        panelSecuenciaBotones.Children.Add(txtEstadoSecuencia);
+
+        // Actualizar estado inicial
+        ActualizarEstadoSecuencia();
+
         var txtNCF = new TextBox
         {
-            Header = "NCF *",
-            PlaceholderText = "B0100001899",
-            MaxLength = 19
+            Header = "NCF Completo",
+            PlaceholderText = "Se construye automáticamente",
+            IsReadOnly = true
         };
+
+        // Actualizar NCF completo al cambiar tipo o número
+        void UpdateNcfPreview()
+        {
+            var tipo = (cmbTipoComprobante.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "B01";
+            var numero = new string((txtNCFNumero.Text ?? string.Empty).Where(char.IsDigit).ToArray());
+            txtNCF.Text = string.IsNullOrWhiteSpace(numero) ? string.Empty : $"{tipo}0000{numero}";
+        }
+        cmbTipoComprobante.SelectionChanged += (s, e) => UpdateNcfPreview();
+        txtNCFNumero.TextChanged += (s, e) => UpdateNcfPreview();
 
         var dpValidaHasta = new CalendarDatePicker
         {
@@ -1719,12 +1998,58 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
             Height = 80
         };
 
+        // Selección Exento/Gravado
+        var grdImpuestoPanel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+        var rbExento = new RadioButton { Content = "Exento", IsChecked = true };
+        var rbGravado = new RadioButton { Content = "Gravado" };
+        grdImpuestoPanel.Children.Add(new TextBlock { Text = "Tipo de Impuesto:", VerticalAlignment = VerticalAlignment.Center });
+        grdImpuestoPanel.Children.Add(rbExento);
+        grdImpuestoPanel.Children.Add(rbGravado);
+
         var txtMonto = new TextBox
         {
             Header = "Monto (RD$) *",
             Text = reciboSeleccionado.Monto.ToString("N2"),
-            IsReadOnly = true
+            IsReadOnly = false
         };
+
+        // Vista previa de totales: Exento, Gravado, Itbis
+        var previewPanel = new StackPanel { Spacing = 4 };
+        var lblExento = new TextBlock();
+        var lblGravado = new TextBlock();
+        var lblItbis = new TextBlock();
+        previewPanel.Children.Add(new TextBlock { Text = "Vista previa de totales:", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+        previewPanel.Children.Add(lblExento);
+        previewPanel.Children.Add(lblGravado);
+        previewPanel.Children.Add(lblItbis);
+
+        void UpdateTotalsPreview()
+        {
+            // Tomar el monto desde el textbox editable
+            decimal monto = 0m;
+            decimal.TryParse(txtMonto.Text, out monto);
+            const decimal itbisRate = 0.18m;
+            if (rbGravado.IsChecked == true)
+            {
+                var gravado = monto;
+                var itbis = Math.Round(gravado * itbisRate, 2);
+                var exento = 0.00m;
+                lblExento.Text = $"Exento: RD$ {exento:N2}";
+                lblGravado.Text = $"Gravado: RD$ {gravado:N2}";
+                lblItbis.Text = $"Itbis (18%): RD$ {itbis:N2}";
+            }
+            else
+            {
+                var exento = monto;
+                lblExento.Text = $"Exento: RD$ {exento:N2}";
+                lblGravado.Text = "Gravado: RD$ 0.00";
+                lblItbis.Text = "Itbis: RD$ 0.00";
+            }
+        }
+        txtMonto.TextChanged += (s, e) => UpdateTotalsPreview();
+        rbExento.Checked += (s, e) => UpdateTotalsPreview();
+        rbGravado.Checked += (s, e) => UpdateTotalsPreview();
+        UpdateTotalsPreview();
 
         var cmbMetodoPago = new ComboBox
         {
@@ -1759,6 +2084,36 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
             panelTransferencia.Visibility = metodo == "Transferencia" ? Visibility.Visible : Visibility.Collapsed;
         };
 
+        // Si viene desde edición de Facturas NCF, precargar NCF desde la BD
+        try
+        {
+            using var scopePrefill = _serviceProvider.CreateScope();
+            using var contextPrefill = scopePrefill.ServiceProvider.GetRequiredService<RamaFemeninaContext>();
+            var facturaExistente = await contextPrefill.Facturas.Include(f => f.Cliente)
+                .FirstOrDefaultAsync(f => f.IdFactura == reciboSeleccionado.IdRecibo);
+            if (facturaExistente != null && facturaExistente.NCFNumerico.HasValue)
+            {
+                var prefijo = facturaExistente.TCFNumerico == 14 ? "B14" : facturaExistente.TCFNumerico == 15 ? "B15" : "B01";
+                var numeroSolo = facturaExistente.NoFactura.ToString();
+                txtNCFNumero.Text = numeroSolo;
+                // seleccionar prefijo en combo
+                for (int i = 0; i < cmbTipoComprobante.Items.Count; i++)
+                {
+                    if (cmbTipoComprobante.Items[i] is ComboBoxItem cbi && (cbi.Tag?.ToString() ?? "") == prefijo)
+                    {
+                        cmbTipoComprobante.SelectedIndex = i;
+                        break;
+                    }
+                }
+                UpdateNcfPreview();
+            }
+        }
+        catch { /* ignorar prefill errores */ }
+
+        // Añadir controles
+        formPanel.Children.Add(cmbTipoComprobante);
+        formPanel.Children.Add(txtNCFNumero);
+        formPanel.Children.Add(panelSecuenciaBotones);
         formPanel.Children.Add(txtNCF);
         formPanel.Children.Add(dpValidaHasta);
         formPanel.Children.Add(txtRncCliente);
@@ -1766,6 +2121,8 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
         formPanel.Children.Add(txtTelefono);
         formPanel.Children.Add(txtDireccion);
         formPanel.Children.Add(txtConcepto);
+        formPanel.Children.Add(grdImpuestoPanel);
+        formPanel.Children.Add(previewPanel);
         formPanel.Children.Add(txtMonto);
         formPanel.Children.Add(cmbMetodoPago);
         formPanel.Children.Add(panelTransferencia);
@@ -1792,30 +2149,30 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
 
         if (result == ContentDialogResult.Primary)
         {
-            if (string.IsNullOrWhiteSpace(txtNCF.Text))
+            var tipo = (cmbTipoComprobante.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "B01";
+            var numeroSolo = new string((txtNCFNumero.Text ?? string.Empty).Where(char.IsDigit).ToArray());
+            var ncfCompleto = $"{tipo}0000{numeroSolo}";
+
+            if (string.IsNullOrWhiteSpace(numeroSolo))
             {
-                await ShowInfoDialog("Error", "Debe ingresar el NCF");
+                await ShowInfoDialog("Error", "Debe ingresar el número NCF");
                 return;
             }
-
             if (string.IsNullOrWhiteSpace(txtRncCliente.Text))
             {
                 await ShowInfoDialog("Error", "Debe ingresar el RNC del cliente");
                 return;
             }
-
             if (string.IsNullOrWhiteSpace(txtNombreCliente.Text))
             {
                 await ShowInfoDialog("Error", "Debe ingresar el nombre del cliente");
                 return;
             }
-
             if (string.IsNullOrWhiteSpace(txtDireccion.Text))
             {
                 await ShowInfoDialog("Error", "Debe ingresar la dirección del cliente");
                 return;
             }
-
             if (string.IsNullOrWhiteSpace(txtConcepto.Text))
             {
                 await ShowInfoDialog("Error", "Debe ingresar el concepto");
@@ -1828,10 +2185,17 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
 
                 var metodoPago = (cmbMetodoPago.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "Efectivo";
 
-                // Preparar datos de la factura NCF
+                // Validar monto y asignarlo al recibo seleccionado para crear la factura
+                if (!decimal.TryParse(txtMonto.Text, out var montoIngresado) || montoIngresado <= 0)
+                {
+                    await ShowInfoDialog("Error", "Debe ingresar un monto válido");
+                    return;
+                }
+                reciboSeleccionado.Monto = montoIngresado;
+
                 var datosFacturaNcf = new DatosFacturaNcf
                 {
-                    NCF = txtNCF.Text.Trim(),
+                    NCF = ncfCompleto,
                     ValidaHasta = dpValidaHasta.Date?.DateTime ?? DateTime.Now.AddMonths(1),
                     RncCliente = txtRncCliente.Text.Trim(),
                     NombreCliente = txtNombreCliente.Text.Trim().ToUpper(),
@@ -1840,33 +2204,144 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
                     Concepto = txtConcepto.Text.Trim().ToUpper(),
                     MetodoPago = metodoPago,
                     NumeroCheque = metodoPago == "Cheque" ? txtNumeroCheque.Text.Trim() : null,
-                    Banco = metodoPago == "Cheque" ? txtBanco.Text.Trim() : null
+                    Banco = metodoPago == "Cheque" ? txtBanco.Text.Trim() : null,
+                    EsGravada = rbGravado.IsChecked == true
                 };
 
-                // 1. CREAR Y GUARDAR FACTURA EN BASE DE DATOS
-                System.Diagnostics.Debug.WriteLine($"[DEBUG] Creando factura NCF a partir del recibo {reciboSeleccionado.NumeroRecibo}");
-                
-                var facturaCreada = await CrearFacturaEnBaseDatos(reciboSeleccionado, datosFacturaNcf);
+                // Si existe una factura (cuando estamos editando), actualizarla; si no, crear nueva
+                using (var scopeUpd = _serviceProvider.CreateScope())
+                using (var contextUpd = scopeUpd.ServiceProvider.GetRequiredService<RamaFemeninaContext>())
+                {
+                    var facturaExistente = await contextUpd.Facturas.Include(f => f.Cliente)
+                        .FirstOrDefaultAsync(f => f.IdFactura == reciboSeleccionado.IdRecibo);
 
-                // 2. GENERAR PDF DESDE LA FACTURA GUARDADA
-                await GenerarPdfDesdeFactura(facturaCreada, datosFacturaNcf.Concepto);
+                    var itbisRate = 0.18m;
+                    var monto = reciboSeleccionado.Monto;
+                    decimal exento = 0.00m, gravado = 0.00m, itbis = 0.00m;
+                    if (datosFacturaNcf.EsGravada)
+                    {
+                        gravado = monto;
+                        itbis = Math.Round(gravado * itbisRate, 2);
+                        exento = 0.00m;
+                    }
+                    else
+                    {
+                        exento = monto;
+                        gravado = 0.00m;
+                        itbis = 0.00m;
+                    }
 
-                // 3. ACTUALIZAR VISTA SI ESTAMOS EN MODO FACTURAS
+                    if (facturaExistente != null)
+                    {
+                        // Actualizar datos en factura existente
+                        facturaExistente.NoFactura = int.TryParse(numeroSolo, out var nf) ? nf : facturaExistente.NoFactura;
+                        facturaExistente.NCFNumerico = long.TryParse("0000" + numeroSolo, out var ncfNum) ? ncfNum : facturaExistente.NCFNumerico;
+                        facturaExistente.TCFNumerico = tipo == "B14" ? 14 : tipo == "B15" ? 15 : 1;
+                        facturaExistente.Exento = exento;
+                        facturaExistente.Gravado = gravado;
+                        facturaExistente.Itbis = itbis;
+                        facturaExistente.APagar = exento + gravado + itbis;
+                        facturaExistente.Pago = facturaExistente.APagar;
+                        facturaExistente.EsEfectivo = metodoPago == "Efectivo";
+                        facturaExistente.EsCheque = metodoPago == "Cheque";
+                        facturaExistente.EsCredito = metodoPago == "Credito";
+                        facturaExistente.NumeroCheque = datosFacturaNcf.NumeroCheque;
+                        facturaExistente.Banco = datosFacturaNcf.Banco;
+                        facturaExistente.FechaVencimientoTexto = datosFacturaNcf.ValidaHasta.ToString("dd/MM/yyyy");
+
+                        // Cliente
+                        var cliente = await contextUpd.Clientes.FirstOrDefaultAsync(c => c.rnc == datosFacturaNcf.RncCliente);
+                        if (cliente == null)
+                        {
+                            cliente = new Clientes
+                            {
+                                rnc = datosFacturaNcf.RncCliente,
+                                nombre = datosFacturaNcf.NombreCliente,
+                                telefono = datosFacturaNcf.TelefonoCliente,
+                                direccion = datosFacturaNcf.DireccionCliente
+                            };
+                            contextUpd.Clientes.Add(cliente);
+                            await contextUpd.SaveChangesAsync();
+                        }
+                        else
+                        {
+                            cliente.nombre = datosFacturaNcf.NombreCliente;
+                            cliente.telefono = datosFacturaNcf.TelefonoCliente;
+                            cliente.direccion = datosFacturaNcf.DireccionCliente;
+                            await contextUpd.SaveChangesAsync();
+                        }
+                        facturaExistente.IdCliente = cliente.idCliente;
+
+                        await contextUpd.SaveChangesAsync();
+
+                        // Generar PDF con datos actualizados
+                        await GenerarPdfDesdeFactura(facturaExistente, datosFacturaNcf.Concepto, tipo);
+
+                        await contextUpd.Entry(facturaExistente).Reference(f => f.Cliente).LoadAsync();
+
+                        // Construir NCF completo para la UI
+                        var tipoComprobanteActualizado = tipo == "B14" ? "B14" : tipo == "B15" ? "B15" : "B01";
+                        var ncfCompletoActualizado = $"{tipoComprobanteActualizado}{facturaExistente.NCFNumerico:D8}";
+
+                        // Actualizar la fila seleccionada en la UI con un ReciboFacturaNcf completo
+                        DispatcherQueue.TryEnqueue(() =>
+                        {
+                            var idx = RecibosCollection.IndexOf(reciboSeleccionado);
+                            if (idx >= 0)
+                            {
+                                var actualizado = new ReciboFacturaNcf
+                                {
+                                    IdRecibo = facturaExistente.IdFactura,
+                                    NumeroRecibo = facturaExistente.NoFactura,
+                                    TipoRecibo = "Factura NCF",
+                                    Fecha = facturaExistente.Fecha,
+                                    RecibimosDe = facturaExistente.Cliente?.nombre ?? reciboSeleccionado.RecibimosDe,
+                                    Monto = facturaExistente.APagar,
+                                    Concepto = datosFacturaNcf.Concepto,
+                                    EsEfectivo = facturaExistente.EsEfectivo,
+                                    EsCheque = facturaExistente.EsCheque,
+                                    EsTransferencia = facturaExistente.EsCredito,
+                                    NumeroCheque = facturaExistente.NumeroCheque,
+                                    Banco = facturaExistente.Banco,
+                                    Cedula = facturaExistente.Cliente?.rnc ?? reciboSeleccionado.Cedula,
+                                    // ? IMPORTANTE: Incluir los valores actualizados
+                                    Exento = facturaExistente.Exento,
+                                    Gravado = facturaExistente.Gravado,
+                                    Itbis = facturaExistente.Itbis,
+                                    NCFCompleto = ncfCompletoActualizado,
+                                    TCFNumerico = facturaExistente.TCFNumerico,
+                                    ValidaHasta = facturaExistente.FechaVencimiento ?? DateTime.Now.AddMonths(1),
+                                    DireccionCliente = facturaExistente.Cliente?.direccion ?? "",
+                                    TelefonoCliente = facturaExistente.Cliente?.telefono ?? ""
+                                };
+                                RecibosCollection[idx] = actualizado;
+                                
+                                System.Diagnostics.Debug.WriteLine($"[DEBUG] ? Fila actualizada en UI con valores: Exento={actualizado.Exento}, Gravado={actualizado.Gravado}, Itbis={actualizado.Itbis}");
+                            }
+                            UpdatePaginationControls();
+                        });
+
+                        await ShowInfoDialog("Éxito", 
+                            $"Factura NCF actualizada correctamente.\n\n" +
+                            $"NCF: {ncfCompletoActualizado}\n" +
+                            $"Exento: RD$ {exento:N2}\n" +
+                            $"Gravado: RD$ {gravado:N2}\n" +
+                            $"Itbis: RD$ {itbis:N2}\n" +
+                            $"Total: RD$ {facturaExistente.APagar:N2}");
+                    }
+                    else
+                    {
+                        var facturaCreada = await CrearFacturaEnBaseDatos(reciboSeleccionado, datosFacturaNcf, tipo, numeroSolo);
+                        await GenerarPdfDesdeFactura(facturaCreada, datosFacturaNcf.Concepto, tipo);
+
+                        await ShowInfoDialog("Éxito", "Factura NCF creada y guardada correctamente.");
+                    }
+                }
+
                 if (_tipoDocumentoActual == TipoDocumento.Facturas)
                 {
                     await CargarFacturas();
                 }
-
-                await ShowInfoDialog("? Éxito",
-                    "Factura NCF creada y guardada correctamente.\n\n" +
-                    $"?? ID Factura (PK): {facturaCreada.IdFactura}\n" +
-                    $"?? No.Factura = NCF: {facturaCreada.NoFactura}\n" +
-                    $"?? Cliente: {facturaCreada.Cliente?.nombre}\n" +
-                    $"?? Monto: RD$ {facturaCreada.APagar:N2}\n\n" +
-                    "? Factura guardada en base de datos\n" +
-                    "?? PDF generado y abierto automáticamente\n" +
-                    "?? Ahora disponible en lista de Facturas NCF\n\n" +
-                    "?? NCF y NoFactura contienen la misma información");
             }
             catch (Exception ex)
             {
@@ -1880,243 +2355,122 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
         }
     }
 
-    private async Task<Factura> CrearFacturaEnBaseDatos(Recibo recibo, DatosFacturaNcf datos)
+    private async Task<Factura> CrearFacturaEnBaseDatos(Recibo recibo, DatosFacturaNcf datos, string tipoComprobante = "B01", string numeroSolo = null)
     {
-        System.Diagnostics.Debug.WriteLine("[DEBUG] CrearFacturaEnBaseDatos - INICIO");
-        
+        // Ajustar creación usando tipo y número
         using var scope = _serviceProvider.CreateScope();
         using var context = scope.ServiceProvider.GetRequiredService<RamaFemeninaContext>();
-        
         try
         {
-            // 1. Obtener o crear cliente
-            var cliente = await ObtainOrCreateClient(context, datos);
-            
-            // 2. Extraer solo números del NCF para NCFNumerico y NoFactura
-            var ncfSoloNumeros = string.Concat(datos.NCF.Where(char.IsDigit));
-            var ncfNumerico = long.TryParse(ncfSoloNumeros, out long ncf) ? ncf : 0;
-            var noFactura = int.TryParse(ncfSoloNumeros, out int noFact) ? noFact : 0;
-            
-            // 2.1 Validar y limpiar valores monetarios
-            var montoRecibo = Math.Max(0m, recibo.Monto);
-            System.Diagnostics.Debug.WriteLine($"[DEBUG] Monto original del recibo: {recibo.Monto}, Monto procesado: {montoRecibo}");
-            
-            // 3. Crear la factura con valores explícitos ABSOLUTAMENTE SEGUROS
-            var factura = new Factura();
-            
-            // Asignar cada campo individualmente con valores garantizados
-            factura.NoFactura = noFactura;
-            factura.Fecha = recibo.Fecha;
-            factura.IdCliente = cliente.idCliente;
-            
-            // CRÍTICO: Campos decimales con valores absolutamente explícitos
-            factura.Exento = decimal.Parse(montoRecibo.ToString("F2"));        // Forzar formato correcto
-            factura.Gravado = decimal.Parse("0.00");                          // Absolutamente explícito
-            factura.Itbis = decimal.Parse("0.00");                            // Absolutamente explícito  
-            factura.APagar = decimal.Parse(montoRecibo.ToString("F2"));        // Forzar formato correcto
-            factura.Pago = decimal.Parse(montoRecibo.ToString("F2"));          // Forzar formato correcto
-            factura.Cambio = decimal.Parse("0.00");                           // Absolutamente explícito
-            
-            // Método de pago
-            factura.EsEfectivo = datos.MetodoPago == "Efectivo";
-            factura.EsCheque = datos.MetodoPago == "Cheque"; 
-            factura.EsCredito = datos.MetodoPago == "Credito";
-            factura.NumeroCheque = string.IsNullOrEmpty(datos.NumeroCheque) ? null : datos.NumeroCheque;
-            factura.Banco = string.IsNullOrEmpty(datos.Banco) ? null : datos.Banco;
-            
-            // NCF
-            factura.NCFNumerico = ncfNumerico;
-            
-            // Estado
-            factura.NulaTexto = "NO";
-            factura.FechaPago = recibo.Fecha;
-            factura.FechaVencimientoTexto = datos.ValidaHasta.ToString("dd/MM/yyyy");
-
-            // 4. VALIDACIÓN FINAL: Asegurar que no hay valores NULL
-            ValidarFacturaAntesDeGuardar(factura);
-
-            // Debug: Verificar valores antes de guardar
-            System.Diagnostics.Debug.WriteLine($"[DEBUG] Valores antes de guardar:");
-            System.Diagnostics.Debug.WriteLine($"  NoFactura: {factura.NoFactura}");
-            System.Diagnostics.Debug.WriteLine($"  Exento: {factura.Exento}");
-            System.Diagnostics.Debug.WriteLine($"  Gravado: {factura.Gravado}");
-            System.Diagnostics.Debug.WriteLine($"  Itbis: {factura.Itbis}");
-            System.Diagnostics.Debug.WriteLine($"  APagar: {factura.APagar}");
-            System.Diagnostics.Debug.WriteLine($"  Pago: {factura.Pago}");
-            System.Diagnostics.Debug.WriteLine($"  Cambio: {factura.Cambio}");
-            System.Diagnostics.Debug.WriteLine($"  NCFNumerico: {factura.NCFNumerico}");
-
-            // 5. Guardar en la base de datos con múltiples estrategias
-            try
+            // Obtener o crear cliente (inline)
+            var cliente = await context.Clientes.FirstOrDefaultAsync(c => c.rnc == datos.RncCliente);
+            if (cliente == null)
             {
-                // ESTRATEGIA 1: EF Core normal
-                System.Diagnostics.Debug.WriteLine("[DEBUG] Intentando guardar con EF Core...");
-                
-                // Habilitar detección de cambios antes de guardar
-                context.ChangeTracker.DetectChanges();
-                
-                // Verificar el estado de la entidad
-                var entry = context.Entry(factura);
-                System.Diagnostics.Debug.WriteLine($"[DEBUG] Estado de entidad antes de Add: {entry.State}");
-                
-                context.Facturas.Add(factura);
-                
-                // Verificar estado después de Add
-                System.Diagnostics.Debug.WriteLine($"[DEBUG] Estado de entidad después de Add: {entry.State}");
-                
-                // Verificar valores que se van a insertar
-                foreach (var property in entry.Properties)
+                cliente = new Clientes
                 {
-                    if (property.CurrentValue == null && !property.Metadata.IsNullable)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[DEBUG WARNING] Propiedad {property.Metadata.Name} es NULL pero no nullable!");
-                    }
-                    System.Diagnostics.Debug.WriteLine($"[DEBUG] {property.Metadata.Name}: {property.CurrentValue}");
-                }
-                
+                    rnc = datos.RncCliente,
+                    nombre = datos.NombreCliente,
+                    telefono = datos.TelefonoCliente,
+                    direccion = datos.DireccionCliente
+                };
+                context.Clientes.Add(cliente);
                 await context.SaveChangesAsync();
-                System.Diagnostics.Debug.WriteLine($"[DEBUG] ? Factura guardada exitosamente con ID: {factura.IdFactura}");
             }
-            catch (Exception efError)
+            else
             {
-                System.Diagnostics.Debug.WriteLine($"[DEBUG ERROR] ? EF Core falló: {efError.Message}");
-                
-                // ESTRATEGIA 2: SQL directo como alternativa
-                System.Diagnostics.Debug.WriteLine("[DEBUG] Intentando con SQL directo...");
-                
-                try
-                {
-                    var sqlQuery = @"
-                        INSERT INTO factura (
-                            nofactura, fecha, idcliente, exento, gravado, itbis, apagar,
-                            cred, efec, cheq, cheque, banco, fechapago, pago, ncf, cambio, nula, fechav2
-                        ) VALUES (
-                            @NoFactura, @Fecha, @IdCliente, @Exento, @Gravado, @Itbis, @APagar,
-                            @EsCredito, @EsEfectivo, @EsCheque, @NumeroCheque, @Banco, @FechaPago, 
-                            @Pago, @NCFNumerico, @Cambio, @NulaTexto, @FechaVencimientoTexto
-                        );
-                        SELECT CAST(SCOPE_IDENTITY() as int);";
-                    
-                    var parametros = new[]
-                    {
-                        new Microsoft.Data.SqlClient.SqlParameter("@NoFactura", factura.NoFactura),
-                        new Microsoft.Data.SqlClient.SqlParameter("@Fecha", factura.Fecha),
-                        new Microsoft.Data.SqlClient.SqlParameter("@IdCliente", (object)factura.IdCliente ?? DBNull.Value),
-                        new Microsoft.Data.SqlClient.SqlParameter("@Exento", factura.Exento),
-                        new Microsoft.Data.SqlClient.SqlParameter("@Gravado", factura.Gravado),
-                        new Microsoft.Data.SqlClient.SqlParameter("@Itbis", factura.Itbis),
-                        new Microsoft.Data.SqlClient.SqlParameter("@APagar", factura.APagar),
-                        new Microsoft.Data.SqlClient.SqlParameter("@EsCredito", factura.EsCredito),
-                        new Microsoft.Data.SqlClient.SqlParameter("@EsEfectivo", factura.EsEfectivo),
-                        new Microsoft.Data.SqlClient.SqlParameter("@EsCheque", factura.EsCheque),
-                        new Microsoft.Data.SqlClient.SqlParameter("@NumeroCheque", (object)factura.NumeroCheque ?? DBNull.Value),
-                        new Microsoft.Data.SqlClient.SqlParameter("@Banco", (object)factura.Banco ?? DBNull.Value),
-                        new Microsoft.Data.SqlClient.SqlParameter("@FechaPago", (object)factura.FechaPago ?? DBNull.Value),
-                        new Microsoft.Data.SqlClient.SqlParameter("@Pago", (object)factura.Pago ?? DBNull.Value),
-                        new Microsoft.Data.SqlClient.SqlParameter("@NCFNumerico", (object)factura.NCFNumerico ?? DBNull.Value),
-                        new Microsoft.Data.SqlClient.SqlParameter("@Cambio", (object)factura.Cambio ?? DBNull.Value),
-                        new Microsoft.Data.SqlClient.SqlParameter("@NulaTexto", factura.NulaTexto ?? "NO"),
-                        new Microsoft.Data.SqlClient.SqlParameter("@FechaVencimientoTexto", (object)factura.FechaVencimientoTexto ?? DBNull.Value)
-                    };
-                    
-                    // Ejecutar el INSERT y obtener el ID
-                    using var connection = context.Database.GetDbConnection();
-                    if (connection.State != System.Data.ConnectionState.Open)
-                        await connection.OpenAsync();
-                    
-                    using var command = connection.CreateCommand();
-                    command.CommandText = sqlQuery;
-                    command.Parameters.AddRange(parametros);
-                    
-                    var result = await command.ExecuteScalarAsync();
-                    factura.IdFactura = Convert.ToInt32(result);
-                    
-                    System.Diagnostics.Debug.WriteLine($"[DEBUG] ? SQL directo exitoso - ID: {factura.IdFactura}");
-                }
-                catch (Exception sqlError)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[DEBUG ERROR] ? SQL directo también falló: {sqlError.Message}");
-                    System.Diagnostics.Debug.WriteLine($"[DEBUG ERROR] InnerException: {sqlError.InnerException?.Message}");
-                    System.Diagnostics.Debug.WriteLine($"[DEBUG ERROR] StackTrace: {sqlError.StackTrace}");
-                    throw new Exception($"Error al guardar factura tanto con EF como con SQL directo. EF Error: {efError.Message}, SQL Error: {sqlError.Message}", sqlError);
-                }
+                // actualizar datos básicos
+                cliente.nombre = datos.NombreCliente;
+                cliente.telefono = datos.TelefonoCliente;
+                cliente.direccion = datos.DireccionCliente;
+                await context.SaveChangesAsync();
             }
 
-            System.Diagnostics.Debug.WriteLine($"[DEBUG] Factura creada - IdFactura (PK): {factura.IdFactura}, NoFactura=NCF: {factura.NoFactura}, NCF Original: {datos.NCF}");
-            
-            // 6. Recargar con cliente para tener datos completos
+            // Construir valores numéricos a partir del número ingresado (sin prefijo)
+            var ncfSoloNumeros = new string((numeroSolo ?? string.Empty).Where(char.IsDigit).ToArray());
+            var ncfNumerico = long.TryParse("0000" + ncfSoloNumeros, out long ncf) ? ncf : 0; // mantiene los 4 ceros
+            var noFactura = int.TryParse(ncfSoloNumeros, out int noFact) ? noFact : 0;
+
+            var montoRecibo = Math.Max(0m, recibo.Monto);
+
+            // Calcular impuestos según tipo (Exento vs Gravado). ITBIS 18% si gravado
+            var itbisRate = 0.18m;
+            decimal exento = 0.00m, gravado = 0.00m, itbis = 0.00m;
+            if (datos.EsGravada)
+            {
+                gravado = montoRecibo;
+                itbis = Math.Round(gravado * itbisRate, 2);
+                exento = 0.00m;
+            }
+            else
+            {
+                exento = montoRecibo;
+                gravado = 0.00m;
+                itbis = 0.00m;
+            }
+
+            var factura = new Factura
+            {
+                NoFactura = noFactura,
+                Fecha = recibo.Fecha,
+                IdCliente = cliente.idCliente,
+                Exento = exento,
+                Gravado = gravado,
+                Itbis = itbis,
+                APagar = exento + gravado + itbis,
+                Pago = exento + gravado + itbis,
+                Cambio = 0.00m,
+                EsEfectivo = datos.MetodoPago == "Efectivo",
+                EsCheque = datos.MetodoPago == "Cheque",
+                EsCredito = datos.MetodoPago == "Credito",
+                NumeroCheque = string.IsNullOrEmpty(datos.NumeroCheque) ? null : datos.NumeroCheque,
+                Banco = string.IsNullOrEmpty(datos.Banco) ? null : datos.Banco,
+                NCFNumerico = ncfNumerico,
+                TCFNumerico = tipoComprobante == "B01" ? 1 : tipoComprobante == "B14" ? 14 : tipoComprobante == "B15" ? 15 : null,
+                NulaTexto = "NO",
+                FechaPago = recibo.Fecha,
+                FechaVencimientoTexto = datos.ValidaHasta.ToString("dd/MM/yyyy")
+            };
+
+            // Validación mínima inline
+            factura.Exento = factura.Exento == 0 ? 0.00m : factura.Exento;
+            factura.Gravado = 0.00m;
+            factura.Itbis = 0.00m;
+            factura.APagar = factura.APagar == 0 ? 0.00m : factura.APagar;
+            factura.Pago = factura.Pago ?? 0.00m;
+            factura.Cambio = factura.Cambio ?? 0.00m;
+            if (string.IsNullOrEmpty(factura.NulaTexto)) factura.NulaTexto = "NO";
+            if (factura.Fecha == default) factura.Fecha = DateTime.Now;
+
+            context.ChangeTracker.DetectChanges();
+            context.Facturas.Add(factura);
+            await context.SaveChangesAsync();
+
             await context.Entry(factura).Reference(f => f.Cliente).LoadAsync();
-            
             return factura;
         }
-        catch (Exception ex)
+        catch
         {
-            System.Diagnostics.Debug.WriteLine($"[DEBUG ERROR] Error creando factura: {ex.Message}");
             throw;
         }
     }
 
-    private async Task<Clientes> ObtainOrCreateClient(RamaFemeninaContext context, DatosFacturaNcf datos)
-    {
-        // Buscar cliente existente por RNC
-        var clienteExistente = await context.Clientes
-            .FirstOrDefaultAsync(c => c.rnc == datos.RncCliente);
-
-        if (clienteExistente != null)
-        {
-            // Actualizar datos si es necesario
-            clienteExistente.nombre = datos.NombreCliente;
-            clienteExistente.telefono = datos.TelefonoCliente;
-            clienteExistente.direccion = datos.DireccionCliente;
-            await context.SaveChangesAsync();
-            return clienteExistente;
-        }
-
-        // Crear nuevo cliente
-        var nuevoCliente = new Clientes
-        {
-            rnc = datos.RncCliente,
-            nombre = datos.NombreCliente,
-            telefono = datos.TelefonoCliente,
-            direccion = datos.DireccionCliente
-        };
-
-        context.Clientes.Add(nuevoCliente);
-        await context.SaveChangesAsync();
-        return nuevoCliente;
-    }
-
-    private void ValidarFacturaAntesDeGuardar(Factura factura)
-    {
-        System.Diagnostics.Debug.WriteLine("[DEBUG] ValidarFacturaAntesDeGuardar - INICIO");
-        
-        // Validar y corregir campos decimales críticos
-        if (factura.Exento == null) factura.Exento = 0.00m;
-        if (factura.Gravado == null) factura.Gravado = 0.00m;
-        if (factura.Itbis == null) factura.Itbis = 0.00m;
-        if (factura.APagar == null) factura.APagar = 0.00m;
-        if (factura.Pago == null) factura.Pago = 0.00m;
-        if (factura.Cambio == null) factura.Cambio = 0.00m;
-        
-        // Validar campos de texto
-        if (string.IsNullOrEmpty(factura.NulaTexto)) factura.NulaTexto = "NO";
-        
-        // Validar fecha
-        if (factura.Fecha == default(DateTime)) factura.Fecha = DateTime.Now;
-        
-        System.Diagnostics.Debug.WriteLine("[DEBUG] ValidarFacturaAntesDeGuardar - Validación completada");
-    }
-
-    private async Task GenerarPdfDesdeFactura(Factura factura, string conceptoPersonalizado = null)
+    private async Task GenerarPdfDesdeFactura(Factura factura, string conceptoPersonalizado = null, string tipoComprobante = "B01")
     {
         System.Diagnostics.Debug.WriteLine("[DEBUG] GenerarPdfDesdeFactura - INICIO");
-        
         try
         {
-            // Crear objeto FacturaNcf para el PDF
+            var numeroSolo = factura.NoFactura.ToString();
+            var prefijo = tipoComprobante;
+            if (string.IsNullOrEmpty(prefijo))
+            {
+                // reconstruir desde TCFNumerico
+                prefijo = factura.TCFNumerico == 14 ? "B14" : factura.TCFNumerico == 15 ? "B15" : "B01";
+            }
+            var ncfCompleto = $"{prefijo}0000{numeroSolo}";
+
             var facturaNcf = new FacturaNcf
             {
-                NCF = factura.NCF ?? factura.NoFactura.ToString(), // NCF y NoFactura tienen la misma información
+                NCF = ncfCompleto,
                 Fecha = factura.Fecha,
                 ValidaHasta = factura.FechaVencimiento ?? DateTime.Now.AddMonths(1),
                 RncCliente = factura.Cliente?.rnc ?? "",
@@ -2125,6 +2479,9 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
                 DireccionCliente = factura.Cliente?.direccion?.ToUpper() ?? "DIRECCIÓN NO ESPECIFICADA",
                 Concepto = conceptoPersonalizado ?? "DONATIVO PARA PACIENTES ONCOLOGICOS DE ESCASOS RECURSOS.",
                 Monto = factura.APagar,
+                Exento = factura.Exento,
+                Gravado = factura.Gravado,
+                Itbis = factura.Itbis,
                 EsEfectivo = factura.EsEfectivo,
                 EsCheque = factura.EsCheque,
                 EsCredito = factura.EsCredito,
@@ -2143,6 +2500,239 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
             System.Diagnostics.Debug.WriteLine($"[DEBUG ERROR] Error generando PDF: {ex.Message}");
             throw;
         }
+    }
+
+    private async Task MostrarDialogoConfiguracionSecuencia()
+    {
+        var panelConfig = new StackPanel { Spacing = 16 };
+
+        var txtInicio = new TextBox
+        {
+            Header = "Número de Inicio *",
+            PlaceholderText = "Ejemplo: 500",
+            InputScope = new InputScope
+            {
+                Names = { new InputScopeName { NameValue = InputScopeNameValue.Number } }
+            }
+        };
+
+        var txtFin = new TextBox
+        {
+            Header = "Número Final *",
+            PlaceholderText = "Ejemplo: 1000",
+            InputScope = new InputScope
+            {
+                Names = { new InputScopeName { NameValue = InputScopeNameValue.Number } }
+            }
+        };
+
+        // Mostrar estado actual
+        var (activa, actual, inicio, fin, restantes) = _ncfSequenceService.ObtenerEstado();
+        if (activa)
+        {
+            txtInicio.Text = inicio.ToString();
+            txtFin.Text = fin.ToString();
+
+            var infoActual = new Border
+            {
+                Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                    Windows.UI.Color.FromArgb(30, 76, 175, 80)),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(12),
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+
+            var stackInfo = new StackPanel { Spacing = 4 };
+            stackInfo.Children.Add(new TextBlock
+            {
+                Text = "?? Secuencia Actual",
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.DarkGreen)
+            });
+            stackInfo.Children.Add(new TextBlock
+            {
+                Text = $"Rango: {inicio} - {fin}",
+                FontSize = 12
+            });
+            stackInfo.Children.Add(new TextBlock
+            {
+                Text = $"Siguiente número: {actual}",
+                FontSize = 12,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+            });
+            stackInfo.Children.Add(new TextBlock
+            {
+                Text = $"Números restantes: {restantes}",
+                FontSize = 12
+            });
+
+            infoActual.Child = stackInfo;
+            panelConfig.Children.Add(infoActual);
+        }
+
+        var infoPanel = new Border
+        {
+            Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                Windows.UI.Color.FromArgb(30, 33, 150, 243)),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(12),
+            Margin = new Thickness(0, 0, 0, 8)
+        };
+
+        var infoStack = new StackPanel { Spacing = 4 };
+        infoStack.Children.Add(new TextBlock
+        {
+            Text = "?? Información",
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+        });
+        infoStack.Children.Add(new TextBlock
+        {
+            Text = "Configure un rango de números NCF que se auto-incrementarán cada vez que use el botón 'Usar Secuencia'.",
+            TextWrapping = TextWrapping.Wrap,
+            FontSize = 12
+        });
+        infoStack.Children.Add(new TextBlock
+        {
+            Text = "Ejemplo: Si configura del 500 al 1000, cada factura usará: 500, 501, 502... hasta 1000.",
+            TextWrapping = TextWrapping.Wrap,
+            FontSize = 11,
+            FontStyle = Windows.UI.Text.FontStyle.Italic,
+            Margin = new Thickness(0, 4, 0, 0)
+        });
+
+        infoPanel.Child = infoStack;
+        panelConfig.Children.Add(infoPanel);
+
+        panelConfig.Children.Add(txtInicio);
+        panelConfig.Children.Add(txtFin);
+
+        // Botones adicionales
+        var botonesExtra = new StackPanel { Spacing = 8, Margin = new Thickness(0, 8, 0, 0) };
+
+        if (activa)
+        {
+            var btnReiniciar = new Button
+            {
+                Content = "?? Reiniciar Secuencia",
+                HorizontalAlignment = HorizontalAlignment.Stretch
+            };
+            btnReiniciar.Click += (s, e) =>
+            {
+                _ncfSequenceService.ReiniciarSecuencia();
+                _ = ShowInfoDialog("Reinicio Exitoso", 
+                    $"La secuencia ha sido reiniciada.\n\n" +
+                    $"El próximo número será: {_ncfSequenceService.ObtenerNumeroActual()}");
+            };
+
+            var btnDesactivar = new Button
+            {
+                Content = "?? Desactivar Secuencia",
+                HorizontalAlignment = HorizontalAlignment.Stretch
+            };
+            btnDesactivar.Click += (s, e) =>
+            {
+                _ncfSequenceService.DesactivarSecuencia();
+                _ = ShowInfoDialog("Desactivación Exitosa", "La secuencia ha sido desactivada.");
+            };
+
+            botonesExtra.Children.Add(btnReiniciar);
+            botonesExtra.Children.Add(btnDesactivar);
+            panelConfig.Children.Add(botonesExtra);
+        }
+
+        var dialog = new ContentDialog
+        {
+            Title = "?? Configurar Secuencia NCF",
+            Content = new ScrollViewer
+            {
+                Content = panelConfig,
+                MaxHeight = 500,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+            },
+            PrimaryButtonText = "?? Guardar",
+            CloseButtonText = "Cancelar",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = this.XamlRoot
+        };
+
+        var result = await dialog.ShowAsync();
+
+        if (result == ContentDialogResult.Primary)
+        {
+            if (!int.TryParse(txtInicio.Text, out int numeroInicio) || numeroInicio <= 0)
+            {
+                await ShowInfoDialog("Error", "Debe ingresar un número de inicio válido (mayor a 0)");
+                return;
+            }
+
+            if (!int.TryParse(txtFin.Text, out int numeroFin) || numeroFin <= 0)
+            {
+                await ShowInfoDialog("Error", "Debe ingresar un número final válido (mayor a 0)");
+                return;
+            }
+
+            if (numeroFin <= numeroInicio)
+            {
+                await ShowInfoDialog("Error", "El número final debe ser mayor al número de inicio");
+                return;
+            }
+
+            try
+            {
+                _ncfSequenceService.ConfigurarSecuencia(numeroInicio, numeroFin);
+
+                await ShowInfoDialog("? Configuración Exitosa",
+                    $"La secuencia NCF ha sido configurada correctamente.\n\n" +
+                    $"?? Rango: {numeroInicio} - {numeroFin}\n" +
+                    $"?? Total de números: {numeroFin - numeroInicio + 1}\n" +
+                    $"?? Próximo número: {numeroInicio}\n\n" +
+                    $"Use el botón 'Usar Secuencia' para aplicar el siguiente número automáticamente.");
+            }
+            catch (Exception ex)
+            {
+                await ShowInfoDialog("Error", $"Error al configurar la secuencia: {ex.Message}");
+            }
+        }
+    }
+
+    private void MostrarLoadingConMensaje(string mensaje, string submensaje = null)
+    {
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (this.FindName("LoadingOverlay") is Grid loadingOverlay)
+                loadingOverlay.Visibility = Visibility.Visible;
+                
+            if (this.FindName("LoadingIndicator") is ProgressRing loadingIndicator)
+                loadingIndicator.IsActive = true;
+                
+            if (this.FindName("LoadingText") is TextBlock loadingText)
+                loadingText.Text = mensaje;
+                
+            if (this.FindName("LoadingSubtext") is TextBlock loadingSubtext)
+            {
+                if (!string.IsNullOrEmpty(submensaje))
+                {
+                    loadingSubtext.Text = submensaje;
+                    loadingSubtext.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    loadingSubtext.Visibility = Visibility.Collapsed;
+                }
+            }
+        });
+    }
+
+    private void OcultarLoading()
+    {
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (this.FindName("LoadingOverlay") is Grid loadingOverlay)
+                loadingOverlay.Visibility = Visibility.Collapsed;
+                
+            if (this.FindName("LoadingIndicator") is ProgressRing loadingIndicator)
+                loadingIndicator.IsActive = false;
+        });
     }
 
     public void Dispose()

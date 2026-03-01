@@ -387,14 +387,6 @@
                                          SelectionMode="Single"
                                          IsItemClickEnabled="True"
                                          ItemClick="LvClientes_ItemClick">
-                                    <ListView.ItemContainerStyle>
-                                        <Style TargetType="ListViewItem">
-                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                            <Setter Property="Padding" Value="12"/>
-                                            <Setter Property="Margin" Value="0,0,0,8"/>
-                                        </Style>
-                                    </ListView.ItemContainerStyle>
-
                                     <ListView.ItemTemplate>
                                         <DataTemplate x:DataType="local:ClienteViewModel">
                                             <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"

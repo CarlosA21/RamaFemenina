@@ -52,12 +52,12 @@ public sealed partial class ChequesPage : Page, INotifyPropertyChanged
     private float letraY = 44; // valor correcto
     private float montoX = 160;
     private float montoY = 36; // valor correcto 
-    private float conceptoX = 32;
-    private float conceptoY = 120;
-    private float fechaCirculoX = 6;
-    private float fechaCirculoY = 120;
-    private float montoCirculoX = 196;
-    private float montoCirculoY = 120;
+    private float conceptoX = 34;
+    private float conceptoY = 115;
+    private float fechaCirculoX = 8;
+    private float fechaCirculoY = 115;
+    private float montoCirculoX = 198;
+    private float montoCirculoY = 115;
     // Tamaño de fuente independiente para la fecha en el círculo (más pequeña)
     private float fechaCirculoFontSize = 9f;
 
@@ -1027,9 +1027,9 @@ public sealed partial class ChequesPage : Page, INotifyPropertyChanged
             printDoc.DefaultPageSettings.Margins = new Margins(0, 0, 0, 0);
             printDoc.OriginAtMargins = false;
 
-            // Usar tamaño de página Media Carta en retrato: 8.5 x 5.5 pulgadas
+            // Usar tamaño de página Media Carta en retrato: 9.5 x 5.5 pulgadas
             int InchesToHundredths(float inches) => (int)Math.Round(inches * 100f);
-            var halfLetterSize = new PaperSize("MediaCarta", InchesToHundredths(8.5f), InchesToHundredths(5.5f))
+            var halfLetterSize = new PaperSize("MediaCarta", InchesToHundredths(9.5f), InchesToHundredths(5.5f))
             {
                 RawKind = (int)PaperKind.Custom
             };
@@ -1155,7 +1155,10 @@ public sealed partial class ChequesPage : Page, INotifyPropertyChanged
             string montoEnLetras = ConvertirNumeroALetras(cheque.monto);
             e.Graphics.DrawString(montoEnLetras, font, brush, letraX, letraY);
             e.Graphics.DrawString(cheque.monto.ToString("N2"), font, brush, montoX, montoY);
-            e.Graphics.DrawString(cheque.concepto, font, brush, conceptoX, conceptoY);
+            
+            // Dibujar concepto con manejo de líneas múltiples
+            DrawConceptoMultiline(e.Graphics, cheque.concepto, font, brush);
+            
             PrintCircles(e.Graphics, cheque.Fecha, cheque.monto, font, brush);
         }
         catch (Exception ex)
@@ -1208,6 +1211,77 @@ public sealed partial class ChequesPage : Page, INotifyPropertyChanged
         graphics.DrawString(((year % 1000) / 100).ToString(), font, brush, startX + stepX * 5, startY + stepY * 5);
         graphics.DrawString((((year % 1000) % 100) / 10).ToString(), font, brush, startX + stepX * 6, startY + stepY * 6);
         graphics.DrawString((((year % 1000) % 100) % 10).ToString(), font, brush, startX + stepX * 7, startY + stepY * 7);
+    }
+
+    /// <summary>
+    /// Dibuja el concepto en múltiples líneas si es necesario para evitar solapamiento con el monto del círculo
+    /// </summary>
+    private void DrawConceptoMultiline(Graphics graphics, string concepto, Font font, Brush brush)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(concepto))
+                return;
+
+            const int maxCaracteresPorLinea = 50; // Máximo de caracteres por línea
+            const float lineHeight = 4f; // Altura entre líneas en milímetros (reducido de 5f a 4f)
+            const float conceptoFontSize = 9f; // Tamaño de fuente más pequeño para el concepto
+            
+            // Crear fuente más pequeña para el concepto
+            using var conceptoFont = new Font(font.FontFamily, conceptoFontSize, font.Style);
+            
+            // Dividir el concepto en líneas
+            var lineas = new List<string>();
+            
+            if (concepto.Length <= maxCaracteresPorLinea)
+            {
+                // Si el concepto es corto, imprimir en una sola línea
+                lineas.Add(concepto);
+            }
+            else
+            {
+                // Dividir en múltiples líneas
+                int currentIndex = 0;
+                while (currentIndex < concepto.Length)
+                {
+                    int longitudRestante = concepto.Length - currentIndex;
+                    int longitudLinea = Math.Min(maxCaracteresPorLinea, longitudRestante);
+                    
+                    // Intentar cortar en un espacio si es posible
+                    if (longitudLinea < longitudRestante)
+                    {
+                        int ultimoEspacio = concepto.LastIndexOf(' ', currentIndex + longitudLinea, longitudLinea);
+                        if (ultimoEspacio > currentIndex)
+                        {
+                            longitudLinea = ultimoEspacio - currentIndex;
+                        }
+                    }
+                    
+                    string linea = concepto.Substring(currentIndex, longitudLinea).Trim();
+                    lineas.Add(linea);
+                    currentIndex += longitudLinea;
+                    
+                    // Si el siguiente carácter es un espacio, saltarlo
+                    if (currentIndex < concepto.Length && concepto[currentIndex] == ' ')
+                        currentIndex++;
+                }
+            }
+            
+            // Dibujar cada línea con la fuente más pequeña
+            float yActual = conceptoY;
+            foreach (var linea in lineas)
+            {
+                graphics.DrawString(linea, conceptoFont, brush, conceptoX, yActual);
+                yActual += lineHeight;
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error al dibujar concepto multilínea: {ex.Message}");
+            // Fallback: dibujar el concepto completo en una línea con fuente más pequeña
+            using var fallbackFont = new Font(font.FontFamily, 9f, font.Style);
+            graphics.DrawString(concepto ?? "", fallbackFont, brush, conceptoX, conceptoY);
+        }
     }
 
     private async Task<bool> MostrarDialogoConfiguracionImpresion()
