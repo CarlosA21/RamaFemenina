@@ -1,4 +1,4 @@
-using System;
+Ôªøusing System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
@@ -28,7 +28,7 @@ private Timer _searchDelayTimer;
 private bool _isPageActive = true;
 private bool _isLoading;
     
-// Propiedades de paginaciÛn
+// Propiedades de paginaci√≥n
 private int _currentPage = 1;
 private int _pageSize = 50;
 private int _totalCount = 0;
@@ -82,7 +82,7 @@ public int TotalCount
 public int TotalPages => TotalCount == 0 ? 0 : (int)Math.Ceiling((double)TotalCount / _pageSize);
 public bool HasPreviousPage => CurrentPage > 1;
 public bool HasNextPage => CurrentPage < TotalPages;
-public string PageInfo => $"P·gina {CurrentPage} de {TotalPages} ({TotalCount} registros)";
+public string PageInfo => $"P√°gina {CurrentPage} de {TotalPages} ({TotalCount} registros)";
 
 public ObservableCollection<Paciente> Pacientes { get; set; }
 
@@ -121,13 +121,13 @@ public PacientesPage()
         
     Pacientes = new ObservableCollection<Paciente>();
         
-    // InicializaciÛn de timer para b˙squeda con delay
+    // Inicializaci√≥n de timer para b√∫squeda con delay
     _searchDelayTimer = new Timer(PerformSearch, null, Timeout.Infinite, Timeout.Infinite);
         
-    // Habilitar cachÈ de navegaciÛn para evitar reconstrucciones y mantener estado
+    // Habilitar cach√© de navegaci√≥n para evitar reconstrucciones y mantener estado
     NavigationCacheMode = NavigationCacheMode.Enabled;
 
-    // Iniciar animaciÛn de entrada
+    // Iniciar animaci√≥n de entrada
     this.Loaded += (s, e) => 
     {
         try 
@@ -137,9 +137,9 @@ public PacientesPage()
                 storyboard.Begin();
             }
         } 
-        catch { /* Ignorar errores de animaciÛn */ }
+        catch { /* Ignorar errores de animaci√≥n */ }
 
-        // Garantizar primera carga de datos al mostrar la p·gina
+        // Garantizar primera carga de datos al mostrar la p√°gina
         if (Pacientes.Count == 0)
         {
             _ = LoadPageAsync(1);
@@ -170,12 +170,12 @@ public PacientesPage()
         if (!_isPageActive) return;
         
         System.Diagnostics.Debug.WriteLine($"\n[PACIENTES-LOAD] ===== LoadPageAsync INICIO =====");
-        System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] P·gina solicitada: {page}");
+        System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] P√°gina solicitada: {page}");
         System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] CurrentPage ANTES: {CurrentPage}");
         System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] TotalCount ANTES: {TotalCount}");
         System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] TotalPages ANTES: {TotalPages}");
         System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] HasNextPage ANTES: {HasNextPage}");
-        System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] TÈrmino de b˙squeda: '{_currentSearchTerm}'");
+        System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] T√©rmino de b√∫squeda: '{_currentSearchTerm}'");
         
         try
         {
@@ -191,7 +191,7 @@ public PacientesPage()
             Pacientes.Clear();
             foreach (var paciente in pacientes)
             {
-                // Limpiar datos NULL problem·ticos
+                // Limpiar datos NULL problem√°ticos
                 if (paciente.nombre == null) paciente.nombre = "Sin especificar";
                 if (paciente.cedula == null) paciente.cedula = "N/A";
                 if (paciente.estado == null) paciente.estado = "Activo";
@@ -202,11 +202,11 @@ public PacientesPage()
             CurrentPage = page;
             TotalCount = totalCount;
             
-            System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] CurrentPage DESPU…S: {CurrentPage}");
-            System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] TotalCount DESPU…S: {TotalCount}");
-            System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] TotalPages DESPU…S: {TotalPages}");
-            System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] HasPreviousPage DESPU…S: {HasPreviousPage}");
-            System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] HasNextPage DESPU…S: {HasNextPage}");
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] CurrentPage DESPU√âS: {CurrentPage}");
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] TotalCount DESPU√âS: {TotalCount}");
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] TotalPages DESPU√âS: {TotalPages}");
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] HasPreviousPage DESPU√âS: {HasPreviousPage}");
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-LOAD] HasNextPage DESPU√âS: {HasNextPage}");
 
             // Actualizar controles de UI
             if (PacientesListView != null)
@@ -231,7 +231,7 @@ public PacientesPage()
         {
             IsLoading = false;
             
-            // CRÕTICO: Actualizar controles de paginaciÛn DESPU…S de IsLoading = false
+            // CR√çTICO: Actualizar controles de paginaci√≥n DESPU√âS de IsLoading = false
             // para que los botones se habiliten correctamente
             UpdatePaginationControls();
         }
@@ -280,14 +280,14 @@ public PacientesPage()
         
         DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal, async () =>
         {
-            // Resetear a la primera p·gina al realizar una b˙squeda
+            // Resetear a la primera p√°gina al realizar una b√∫squeda
             CurrentPage = 1;
             _cacheService.InvalidateCache("pacientes");
             await LoadPageAsync(CurrentPage);
         });
     }
 
-    // MÈtodo duplicado eliminado
+    // M√©todo duplicado eliminado
 
     private async Task ActualizarEstadisticasAsync()
     {
@@ -295,7 +295,7 @@ public PacientesPage()
         {
             if (!_isPageActive) return;
             
-            // Usar una instancia separada del contexto para estadÌsticas
+            // Usar una instancia separada del contexto para estad√≠sticas
             using var scope = _serviceProvider.CreateScope();
             using var context = scope.ServiceProvider.GetRequiredService<RamaFemeninaContext>();
             
@@ -358,19 +358,19 @@ public PacientesPage()
         }
     }
 
-    // Eventos de paginaciÛn
+    // Eventos de paginaci√≥n
     private async void BtnFirstPage_Click(object sender, RoutedEventArgs e)
     {
         System.Diagnostics.Debug.WriteLine($"\n[PACIENTES-BTN] BtnFirstPage_Click - HasPreviousPage: {HasPreviousPage}, IsLoading: {IsLoading}");
         if (HasPreviousPage && !IsLoading)
         {
-            System.Diagnostics.Debug.WriteLine($"[PACIENTES-BTN] Navegando a p·gina 1 desde p·gina {CurrentPage}");
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-BTN] Navegando a p√°gina 1 desde p√°gina {CurrentPage}");
             CurrentPage = 1;
             await LoadPageAsync(CurrentPage);
         }
         else
         {
-            System.Diagnostics.Debug.WriteLine($"[PACIENTES-BTN] NavegaciÛn bloqueada");
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-BTN] Navegaci√≥n bloqueada");
         }
     }
 
@@ -379,13 +379,13 @@ public PacientesPage()
         System.Diagnostics.Debug.WriteLine($"\n[PACIENTES-BTN] BtnPreviousPage_Click - HasPreviousPage: {HasPreviousPage}, IsLoading: {IsLoading}");
         if (HasPreviousPage && !IsLoading)
         {
-            System.Diagnostics.Debug.WriteLine($"[PACIENTES-BTN] Navegando a p·gina {CurrentPage - 1} desde p·gina {CurrentPage}");
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-BTN] Navegando a p√°gina {CurrentPage - 1} desde p√°gina {CurrentPage}");
             CurrentPage--;
             await LoadPageAsync(CurrentPage);
         }
         else
         {
-            System.Diagnostics.Debug.WriteLine($"[PACIENTES-BTN] NavegaciÛn bloqueada");
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-BTN] Navegaci√≥n bloqueada");
         }
     }
 
@@ -394,14 +394,14 @@ public PacientesPage()
         System.Diagnostics.Debug.WriteLine($"\n[PACIENTES-BTN] BtnNextPage_Click - CurrentPage: {CurrentPage}, TotalPages: {TotalPages}, HasNextPage: {HasNextPage}, IsLoading: {IsLoading}");
         if (HasNextPage && !IsLoading)
         {
-            System.Diagnostics.Debug.WriteLine($"[PACIENTES-BTN] Navegando a p·gina {CurrentPage + 1} desde p·gina {CurrentPage}");
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-BTN] Navegando a p√°gina {CurrentPage + 1} desde p√°gina {CurrentPage}");
             CurrentPage++;
             System.Diagnostics.Debug.WriteLine($"[PACIENTES-BTN] CurrentPage actualizado a: {CurrentPage}");
             await LoadPageAsync(CurrentPage);
         }
         else
         {
-            System.Diagnostics.Debug.WriteLine($"[PACIENTES-BTN] NavegaciÛn bloqueada - HasNextPage: {HasNextPage}, IsLoading: {IsLoading}");
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-BTN] Navegaci√≥n bloqueada - HasNextPage: {HasNextPage}, IsLoading: {IsLoading}");
         }
     }
 
@@ -410,13 +410,13 @@ public PacientesPage()
         System.Diagnostics.Debug.WriteLine($"\n[PACIENTES-BTN] BtnLastPage_Click - HasNextPage: {HasNextPage}, IsLoading: {IsLoading}");
         if (HasNextPage && !IsLoading)
         {
-            System.Diagnostics.Debug.WriteLine($"[PACIENTES-BTN] Navegando a p·gina {TotalPages} desde p·gina {CurrentPage}");
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-BTN] Navegando a p√°gina {TotalPages} desde p√°gina {CurrentPage}");
             CurrentPage = TotalPages;
             await LoadPageAsync(CurrentPage);
         }
         else
         {
-            System.Diagnostics.Debug.WriteLine($"[PACIENTES-BTN] NavegaciÛn bloqueada");
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES-BTN] Navegaci√≥n bloqueada");
         }
     }
 
@@ -431,7 +431,7 @@ public PacientesPage()
     {
         try
         {
-            // Crear y mostrar el di·logo
+            // Crear y mostrar el di√°logo
             var nuevoPaciente = await MostrarDialogoPaciente(null);
             
             if (nuevoPaciente != null)
@@ -460,7 +460,7 @@ public PacientesPage()
 
     private async Task ActualizarInterfazDespuesDeGuardar(Paciente paciente)
     {
-        // Invalidar cachÈ y recargar datos
+        // Invalidar cach√© y recargar datos
         _cacheService.InvalidateCache("pacientes");
         
         // Usar DispatcherQueue para asegurar que estamos en UI thread
@@ -468,14 +468,14 @@ public PacientesPage()
         {
             await LoadPageAsync(CurrentPage);
             
-            // PequeÒo delay para asegurar que el di·logo anterior se cerrÛ completamente
+            // Peque√±o delay para asegurar que el di√°logo anterior se cerr√≥ completamente
             await Task.Delay(100);
             
-            // Mostrar mensaje de Èxito
-            await ShowInfoDialog("…xito", 
+            // Mostrar mensaje de √©xito
+            await ShowInfoDialog("√âxito", 
                 $"Paciente registrado correctamente.\n\n" +
                 $"Nombre: {paciente.nombre}\n" +
-                $"CÈdula: {paciente.cedula}");
+                $"C√©dula: {paciente.cedula}");
         });
     }
 
@@ -532,7 +532,7 @@ public PacientesPage()
         pacienteExistente.sexo = datosNuevos.sexo.Trim();
         pacienteExistente.area = datosNuevos.area?.Trim();
 
-        // Marcar propiedades como modificadas explÌcitamente
+        // Marcar propiedades como modificadas expl√≠citamente
         var entry = context.Entry(pacienteExistente);
         entry.Property(e => e.nombre).IsModified = true;
         entry.Property(e => e.cedula).IsModified = true;
@@ -548,18 +548,18 @@ public PacientesPage()
         var affected = await context.SaveChangesAsync().ConfigureAwait(false);
         if (affected == 0)
         {
-            // Forzar actualizaciÛn si por alguna razÛn no se detectaron cambios
+            // Forzar actualizaci√≥n si por alguna raz√≥n no se detectaron cambios
             context.Update(pacienteExistente);
             affected = await context.SaveChangesAsync().ConfigureAwait(false);
         }
 
-        // Invalidar cachÈ para que la UI no muestre datos viejos
+        // Invalidar cach√© para que la UI no muestre datos viejos
         _cacheService.InvalidateCache("pacientes");
     }
 
     private async Task ActualizarInterfazDespuesDeActualizar(Paciente paciente)
     {
-        // Invalidar cachÈ y recargar datos
+        // Invalidar cach√© y recargar datos
         _cacheService.InvalidateCache("pacientes");
         
         // Usar DispatcherQueue para asegurar que estamos en UI thread
@@ -567,14 +567,14 @@ public PacientesPage()
         {
             await LoadPageAsync(CurrentPage);
             
-            // PequeÒo delay para asegurar que el di·logo anterior se cerrÛ completamente
+            // Peque√±o delay para asegurar que el di√°logo anterior se cerr√≥ completamente
             await Task.Delay(100);
             
-            // Mostrar mensaje de Èxito
-            await ShowInfoDialog("…xito", 
+            // Mostrar mensaje de √©xito
+            await ShowInfoDialog("√âxito", 
                 $"El paciente ha sido actualizado exitosamente.\n\n" +
                 $"Nombre: {paciente.nombre}\n" +
-                $"CÈdula: {paciente.cedula}");
+                $"C√©dula: {paciente.cedula}");
         });
     }
 
@@ -599,12 +599,12 @@ public PacientesPage()
 
             var confirmDialog = new ContentDialog
             {
-                Title = "Confirmar EliminaciÛn",
-                Content = $"øEst· seguro que desea eliminar al paciente?\n\n" +
+                Title = "Confirmar Eliminaci√≥n",
+                Content = $"¬øEst√° seguro que desea eliminar al paciente?\n\n" +
                           $"ID: {pacienteSeleccionado.idpaciente}\n" +
                           $"Nombre: {pacienteSeleccionado.nombre}\n" +
-                          $"CÈdula: {pacienteSeleccionado.cedula}\n\n" +
-                          $"Esta acciÛn no se puede deshacer.",
+                          $"C√©dula: {pacienteSeleccionado.cedula}\n\n" +
+                          $"Esta acci√≥n no se puede deshacer.",
                 PrimaryButtonText = "Eliminar",
                 CloseButtonText = "Cancelar",
                 DefaultButton = ContentDialogButton.Close,
@@ -618,8 +618,8 @@ public PacientesPage()
             }
             catch (System.Runtime.InteropServices.COMException comEx)
             {
-                System.Diagnostics.Debug.WriteLine($"[BTN-ELIMINAR] COM ERROR al mostrar di·logo: {comEx.Message}");
-                await ShowInfoDialog("Error", "Error al mostrar el di·logo de confirmaciÛn.");
+                System.Diagnostics.Debug.WriteLine($"[BTN-ELIMINAR] COM ERROR al mostrar di√°logo: {comEx.Message}");
+                await ShowInfoDialog("Error", "Error al mostrar el di√°logo de confirmaci√≥n.");
                 return;
             }
 
@@ -642,10 +642,10 @@ public PacientesPage()
                         {
                             await LoadPageAsync(CurrentPage);
                             
-                            // PequeÒo delay para evitar COMException
+                            // Peque√±o delay para evitar COMException
                             await Task.Delay(100);
                             
-                            await ShowInfoDialog("…xito", "Paciente eliminado correctamente");
+                            await ShowInfoDialog("√âxito", "Paciente eliminado correctamente");
                         });
                     }
                 }
@@ -665,7 +665,7 @@ public PacientesPage()
             System.Diagnostics.Debug.WriteLine($"[BTN-ELIMINAR] HResult: {comEx.HResult:X}");
             await DispatcherQueue.EnqueueAsync(async () =>
             {
-                await ShowInfoDialog("Error", "Error al procesar la eliminaciÛn.");
+                await ShowInfoDialog("Error", "Error al procesar la eliminaci√≥n.");
             });
         }
         catch (Exception ex)
@@ -683,7 +683,7 @@ public PacientesPage()
         var pacienteSeleccionado = PacientesListView.SelectedItem as Paciente;
         if (pacienteSeleccionado == null)
         {
-            await ShowInfoDialog("Error", "Debe seleccionar un paciente para registrar la donaciÛn");
+            await ShowInfoDialog("Error", "Debe seleccionar un paciente para registrar la donaci√≥n");
             return;
         }
 
@@ -701,11 +701,11 @@ public PacientesPage()
                 
                 // Invalidar cache y recargar
                 _cacheService.InvalidateCache("donaciones");
-                await ShowInfoDialog("…xito", $"DonaciÛn registrada correctamente.\nPaciente: {pacienteSeleccionado.nombre}\nMonto: RD$ {resultado.valor:N2}");
+                await ShowInfoDialog("√âxito", $"Donaci√≥n registrada correctamente.\nPaciente: {pacienteSeleccionado.nombre}\nMonto: RD$ {resultado.valor:N2}");
             }
             catch (Exception ex)
             {
-                await ShowInfoDialog("Error", $"Error al registrar donaciÛn: {ex.Message}");
+                await ShowInfoDialog("Error", $"Error al registrar donaci√≥n: {ex.Message}");
             }
         }
     }
@@ -714,16 +714,16 @@ public PacientesPage()
     {
         try
         {
-            // Obtener el paciente del DataContext del botÛn
+            // Obtener el paciente del DataContext del bot√≥n
             var pacienteSeleccionado = (sender as Button)?.DataContext as Paciente;
             if (pacienteSeleccionado == null)
             {
-                await ShowInfoDialog("Error", "No se pudo obtener la informaciÛn del paciente");
+                await ShowInfoDialog("Error", "No se pudo obtener la informaci√≥n del paciente");
                 return;
             }
 
-            // Mostrar di·logo con las donaciones del paciente
-            await MostrarDialogoDonacionesPaciente(pacienteSeleccionado);
+            // Mostrar di√°logo con las donaciones del paciente (p√°gina 1)
+            await MostrarDialogoDonacionesPaciente(pacienteSeleccionado, 1);
         }
         catch (Exception ex)
         {
@@ -732,7 +732,7 @@ public PacientesPage()
         }
     }
 
-    private async Task MostrarDialogoDonacionesPaciente(Paciente paciente)
+    private async Task MostrarDialogoDonacionesPaciente(Paciente paciente, int paginaActual = 1)
     {
         if (this.XamlRoot == null)
         {
@@ -742,19 +742,29 @@ public PacientesPage()
 
         try
         {
-            // Obtener las donaciones del paciente
-            using var scope = _serviceProvider.CreateScope();
-            using var context = scope.ServiceProvider.GetRequiredService<RamaFemeninaContext>();
+            // Variables de paginaci√≥n
+            int itemsPorPagina = 10;
 
-            var donaciones = await context.Donaciones
+            // Obtener TODAS las donaciones del paciente de una sola vez
+            using var scopeAll = _serviceProvider.CreateScope();
+            using var contextAll = scopeAll.ServiceProvider.GetRequiredService<RamaFemeninaContext>();
+
+            var todasLasDonaciones = await contextAll.Donaciones
                 .Where(d => d.idPaciente == paciente.idpaciente)
                 .OrderByDescending(d => d.Fecha)
                 .ToListAsync();
 
-            // Crear el contenido del di·logo
+            var totalDonaciones = todasLasDonaciones.Count;
+            var totalPaginas = (int)Math.Ceiling((double)totalDonaciones / itemsPorPagina);
+
+            // Calcular totales
+            var totalDonado = todasLasDonaciones.Sum(d => d.valor);
+            var totalSolicitado = todasLasDonaciones.Sum(d => d.montoSolicitado);
+
+            // Crear el contenido del di√°logo
             var contentPanel = new StackPanel { Spacing = 16 };
 
-            // InformaciÛn del paciente
+            // Informaci√≥n del paciente
             var infoPanel = new StackPanel
             {
                 Spacing = 8,
@@ -772,7 +782,7 @@ public PacientesPage()
 
             infoPanel.Children.Add(new TextBlock
             {
-                Text = $"CÈdula: {paciente.cedula}",
+                Text = $"C√©dula: {paciente.cedula}",
                 FontSize = 12,
                 Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray)
             });
@@ -780,12 +790,8 @@ public PacientesPage()
             contentPanel.Children.Add(infoPanel);
 
             // Resumen de donaciones
-            if (donaciones.Any())
+            if (totalDonaciones > 0)
             {
-                var totalDonado = donaciones.Sum(d => d.valor);
-                var totalSolicitado = donaciones.Sum(d => d.montoSolicitado);
-                var cantidadDonaciones = donaciones.Count;
-
                 var resumenPanel = new StackPanel
                 {
                     Spacing = 12,
@@ -815,7 +821,7 @@ public PacientesPage()
                 });
                 cantidadStack.Children.Add(new TextBlock
                 {
-                    Text = cantidadDonaciones.ToString(),
+                    Text = totalDonaciones.ToString(),
                     FontSize = 20,
                     FontWeight = Microsoft.UI.Text.FontWeights.Bold
                 });
@@ -885,96 +891,249 @@ public PacientesPage()
                 resumenPanel.Children.Add(gridResumen);
                 contentPanel.Children.Add(resumenPanel);
 
-                // Lista de donaciones
-                var listaDonaciones = new StackPanel { Spacing = 8 };
+                // Contenedor para la lista de donaciones (se actualizar√° din√°micamente)
+                var listaDonacionesContainer = new StackPanel { Spacing = 8 };
 
-                foreach (var donacion in donaciones.Take(10)) // Limitar a 10 m·s recientes
+                // Contenedor para paginaci√≥n (se actualizar√° din√°micamente)
+                var paginacionContainer = new StackPanel();
+
+                // Funci√≥n para actualizar la vista de donaciones seg√∫n la p√°gina
+                Action<int> ActualizarVistaDonaciones = null;
+                ActualizarVistaDonaciones = (pagina) =>
                 {
-                    var donacionBorder = new Border
-                    {
-                        Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                            Windows.UI.Color.FromArgb(10, 0, 0, 0)),
-                        CornerRadius = new CornerRadius(8),
-                        Padding = new Thickness(12),
-                        Margin = new Thickness(0, 0, 0, 4)
-                    };
+                    System.Diagnostics.Debug.WriteLine($"[VER-DONACIONES] Actualizando a p√°gina {pagina}");
 
-                    var donacionGrid = new Grid { ColumnSpacing = 12 };
-                    donacionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                    donacionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    donacionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    // Limpiar contenido anterior
+                    listaDonacionesContainer.Children.Clear();
+                    paginacionContainer.Children.Clear();
 
-                    var fechaBadge = new Border
-                    {
-                        Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                            Windows.UI.Color.FromArgb(255, 102, 126, 234)),
-                        CornerRadius = new CornerRadius(6),
-                        Padding = new Thickness(8, 4, 8, 4)
-                    };
-                    fechaBadge.Child = new TextBlock
-                    {
-                        Text = donacion.Fecha.ToString("dd/MM/yyyy"),
-                        FontSize = 11,
-                        FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-                        Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White)
-                    };
-                    Grid.SetColumn(fechaBadge, 0);
+                    // Obtener donaciones de la p√°gina actual
+                    var donacionesPagina = todasLasDonaciones
+                        .Skip((pagina - 1) * itemsPorPagina)
+                        .Take(itemsPorPagina)
+                        .ToList();
 
-                    var infoStack = new StackPanel { Spacing = 4 };
-                    if (!string.IsNullOrWhiteSpace(donacion.procedimiento))
+                    // Renderizar donaciones
+                    foreach (var donacion in donacionesPagina)
                     {
-                        infoStack.Children.Add(new TextBlock
+                        var donacionBorder = new Border
                         {
-                            Text = donacion.procedimiento,
-                            FontSize = 13,
-                            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
-                        });
+                            Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                                Windows.UI.Color.FromArgb(10, 0, 0, 0)),
+                            CornerRadius = new CornerRadius(8),
+                            Padding = new Thickness(12),
+                            Margin = new Thickness(0, 0, 0, 4)
+                        };
+
+                        var donacionGrid = new Grid { ColumnSpacing = 12 };
+                        donacionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                        donacionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                        donacionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                        var fechaBadge = new Border
+                        {
+                            Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                                Windows.UI.Color.FromArgb(255, 102, 126, 234)),
+                            CornerRadius = new CornerRadius(6),
+                            Padding = new Thickness(8, 4, 8, 4)
+                        };
+                        fechaBadge.Child = new TextBlock
+                        {
+                            Text = donacion.Fecha.ToString("dd/MM/yyyy"),
+                            FontSize = 11,
+                            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White)
+                        };
+                        Grid.SetColumn(fechaBadge, 0);
+
+                        var infoStack = new StackPanel { Spacing = 4 };
+                        if (!string.IsNullOrWhiteSpace(donacion.procedimiento))
+                        {
+                            infoStack.Children.Add(new TextBlock
+                            {
+                                Text = donacion.procedimiento,
+                                FontSize = 13,
+                                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+                            });
+                        }
+                        if (!string.IsNullOrWhiteSpace(donacion.observacion))
+                        {
+                            infoStack.Children.Add(new TextBlock
+                            {
+                                Text = donacion.observacion,
+                                FontSize = 11,
+                                Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray),
+                                TextTrimming = TextTrimming.CharacterEllipsis
+                            });
+                        }
+                        Grid.SetColumn(infoStack, 1);
+
+                        var montoText = new TextBlock
+                        {
+                            Text = $"RD$ {donacion.valor:N2}",
+                            FontSize = 14,
+                            FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+                            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                                Windows.UI.Color.FromArgb(255, 16, 124, 16)),
+                            VerticalAlignment = VerticalAlignment.Center
+                        };
+                        Grid.SetColumn(montoText, 2);
+
+                        donacionGrid.Children.Add(fechaBadge);
+                        donacionGrid.Children.Add(infoStack);
+                        donacionGrid.Children.Add(montoText);
+
+                        donacionBorder.Child = donacionGrid;
+                        listaDonacionesContainer.Children.Add(donacionBorder);
                     }
-                    if (!string.IsNullOrWhiteSpace(donacion.observacion))
+
+                    // Renderizar controles de paginaci√≥n
+                    if (totalPaginas > 1)
                     {
-                        infoStack.Children.Add(new TextBlock
+                        var paginacionPanel = new Grid
                         {
-                            Text = donacion.observacion,
+                            Margin = new Thickness(0, 16, 0, 0),
+                            ColumnSpacing = 8
+                        };
+                        paginacionPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                        paginacionPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                        paginacionPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                        // Info de p√°gina
+                        var pageInfoBorder = new Border
+                        {
+                            Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                                Windows.UI.Color.FromArgb(255, 102, 126, 234)),
+                            CornerRadius = new CornerRadius(6),
+                            Padding = new Thickness(10, 6, 10, 6)
+                        };
+                        pageInfoBorder.Child = new TextBlock
+                        {
+                            Text = $"P√°gina {pagina} de {totalPaginas}",
+                            FontSize = 12,
+                            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White)
+                        };
+                        Grid.SetColumn(pageInfoBorder, 0);
+
+                        // Texto de registros
+                        var registrosText = new TextBlock
+                        {
+                            Text = $"Mostrando {donacionesPagina.Count} de {totalDonaciones} donaciones",
                             FontSize = 11,
                             Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray),
-                            TextTrimming = TextTrimming.CharacterEllipsis
-                        });
+                            VerticalAlignment = VerticalAlignment.Center,
+                            HorizontalAlignment = HorizontalAlignment.Center
+                        };
+                        Grid.SetColumn(registrosText, 1);
+
+                        // Botones de navegaci√≥n
+                        var botonesPanel = new StackPanel
+                        {
+                            Orientation = Orientation.Horizontal,
+                            Spacing = 6
+                        };
+
+                        var btnPrimera = new Button
+                        {
+                            Content = new FontIcon { Glyph = "\uE892", FontSize = 14 },
+                            Width = 40,
+                            Height = 40,
+                            CornerRadius = new CornerRadius(20),
+                            IsEnabled = pagina > 1
+                        };
+
+                        var btnAnterior = new Button
+                        {
+                            Content = new StackPanel
+                            {
+                                Orientation = Orientation.Horizontal,
+                                Spacing = 4,
+                                Children =
+                                {
+                                    new FontIcon { Glyph = "\uE76B", FontSize = 12 },
+                                    new TextBlock { Text = "Ant", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }
+                                }
+                            },
+                            Width = 70,
+                            Height = 40,
+                            CornerRadius = new CornerRadius(8),
+                            IsEnabled = pagina > 1
+                        };
+
+                        var paginaActualBorder = new Border
+                        {
+                            Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                                Windows.UI.Color.FromArgb(30, 102, 126, 234)),
+                            CornerRadius = new CornerRadius(8),
+                            Padding = new Thickness(14, 10, 14, 10),
+                            MinWidth = 50
+                        };
+                        paginaActualBorder.Child = new TextBlock
+                        {
+                            Text = pagina.ToString(),
+                            FontSize = 14,
+                            FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+                            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                                Windows.UI.Color.FromArgb(255, 102, 126, 234)),
+                            HorizontalAlignment = HorizontalAlignment.Center
+                        };
+
+                        var btnSiguiente = new Button
+                        {
+                            Content = new StackPanel
+                            {
+                                Orientation = Orientation.Horizontal,
+                                Spacing = 4,
+                                Children =
+                                {
+                                    new TextBlock { Text = "Sig", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold },
+                                    new FontIcon { Glyph = "\uE76C", FontSize = 12 }
+                                }
+                            },
+                            Width = 70,
+                            Height = 40,
+                            CornerRadius = new CornerRadius(8),
+                            IsEnabled = pagina < totalPaginas
+                        };
+
+                        var btnUltima = new Button
+                        {
+                            Content = new FontIcon { Glyph = "\uE893", FontSize = 14 },
+                            Width = 40,
+                            Height = 40,
+                            CornerRadius = new CornerRadius(20),
+                            IsEnabled = pagina < totalPaginas
+                        };
+
+                        // Event handlers - Solo actualizan el contenido, NO recrean el di√°logo
+                        btnPrimera.Click += (s, args) => ActualizarVistaDonaciones(1);
+                        btnAnterior.Click += (s, args) => ActualizarVistaDonaciones(pagina - 1);
+                        btnSiguiente.Click += (s, args) => ActualizarVistaDonaciones(pagina + 1);
+                        btnUltima.Click += (s, args) => ActualizarVistaDonaciones(totalPaginas);
+
+                        botonesPanel.Children.Add(btnPrimera);
+                        botonesPanel.Children.Add(btnAnterior);
+                        botonesPanel.Children.Add(paginaActualBorder);
+                        botonesPanel.Children.Add(btnSiguiente);
+                        botonesPanel.Children.Add(btnUltima);
+
+                        Grid.SetColumn(botonesPanel, 2);
+
+                        paginacionPanel.Children.Add(pageInfoBorder);
+                        paginacionPanel.Children.Add(registrosText);
+                        paginacionPanel.Children.Add(botonesPanel);
+
+                        paginacionContainer.Children.Add(paginacionPanel);
                     }
-                    Grid.SetColumn(infoStack, 1);
+                };
 
-                    var montoText = new TextBlock
-                    {
-                        Text = $"RD$ {donacion.valor:N2}",
-                        FontSize = 14,
-                        FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-                        Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                            Windows.UI.Color.FromArgb(255, 16, 124, 16)),
-                        VerticalAlignment = VerticalAlignment.Center
-                    };
-                    Grid.SetColumn(montoText, 2);
+                // Agregar contenedores al panel principal
+                contentPanel.Children.Add(listaDonacionesContainer);
+                contentPanel.Children.Add(paginacionContainer);
 
-                    donacionGrid.Children.Add(fechaBadge);
-                    donacionGrid.Children.Add(infoStack);
-                    donacionGrid.Children.Add(montoText);
-
-                    donacionBorder.Child = donacionGrid;
-                    listaDonaciones.Children.Add(donacionBorder);
-                }
-
-                if (donaciones.Count > 10)
-                {
-                    listaDonaciones.Children.Add(new TextBlock
-                    {
-                        Text = $"... y {donaciones.Count - 10} donaciones m·s",
-                        FontSize = 11,
-                        FontStyle = Windows.UI.Text.FontStyle.Italic,
-                        Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray),
-                        Margin = new Thickness(0, 8, 0, 0),
-                        HorizontalAlignment = HorizontalAlignment.Center
-                    });
-                }
-
-                contentPanel.Children.Add(listaDonaciones);
+                // Llamar a la funci√≥n para mostrar la p√°gina inicial
+                ActualizarVistaDonaciones(paginaActual);
             }
             else
             {
@@ -1004,7 +1163,7 @@ public PacientesPage()
 
                 sinDonacionesPanel.Children.Add(new TextBlock
                 {
-                    Text = "Este paciente a˙n no tiene donaciones asociadas",
+                    Text = "Este paciente a√∫n no tiene donaciones asociadas",
                     FontSize = 12,
                     Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray),
                     HorizontalAlignment = HorizontalAlignment.Center
@@ -1020,9 +1179,10 @@ public PacientesPage()
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto
             };
 
+            // Crear y mostrar el di√°logo (solo una vez)
             var dialog = new ContentDialog
             {
-                Title = "?? Historial de Donaciones",
+                Title = "üìä Historial de Donaciones",
                 Content = scrollViewer,
                 CloseButtonText = "Cerrar",
                 DefaultButton = ContentDialogButton.Close,
@@ -1040,10 +1200,10 @@ public PacientesPage()
 
     private async Task<Paciente> MostrarDialogoPaciente(Paciente pacienteExistente)
     {
-        // Dialogo con validaciÛn utilizando PrimaryButtonClick y deferral (patrÛn similar a ChequesPage)
+        // Dialogo con validaci√≥n utilizando PrimaryButtonClick y deferral (patr√≥n similar a ChequesPage)
         if (this.XamlRoot == null)
         {
-            System.Diagnostics.Debug.WriteLine("[PACIENTES] XamlRoot es null, no se puede mostrar di·logo");
+            System.Diagnostics.Debug.WriteLine("[PACIENTES] XamlRoot es null, no se puede mostrar di√°logo");
             return null;
         }
 
@@ -1051,7 +1211,7 @@ public PacientesPage()
 
         var cedulaBox = new TextBox
         {
-            Header = "CÈdula *",
+            Header = "C√©dula *",
             PlaceholderText = "000-0000000-0",
             Text = pacienteExistente?.cedula ?? "",
             MaxLength = 50
@@ -1067,7 +1227,7 @@ public PacientesPage()
 
         var telefonoBox = new TextBox
         {
-            Header = "TelÈfono",
+            Header = "Tel√©fono",
             PlaceholderText = "809-000-0000",
             Text = pacienteExistente?.telefono ?? "",
             MaxLength = 50
@@ -1112,15 +1272,15 @@ public PacientesPage()
         var nrecordBox = new TextBox
         {
             Header = "No. Record",
-            PlaceholderText = "N˙mero de record mÈdico",
+            PlaceholderText = "N√∫mero de record m√©dico",
             Text = pacienteExistente?.nrecord ?? "",
             MaxLength = 50
         };
 
         var areaBox = new TextBox
         {
-            Header = "¡rea *",
-            PlaceholderText = "¡rea o departamento",
+            Header = "√Årea *",
+            PlaceholderText = "√Årea o departamento",
             Text = pacienteExistente?.area ?? "General",
             MaxLength = 50
         };
@@ -1128,7 +1288,7 @@ public PacientesPage()
         var observacionesBox = new TextBox
         {
             Header = "Observaciones",
-            PlaceholderText = "Observaciones mÈdicas o comentarios",
+            PlaceholderText = "Observaciones m√©dicas o comentarios",
             AcceptsReturn = true,
             TextWrapping = TextWrapping.Wrap,
             Height = 80,
@@ -1179,10 +1339,10 @@ public PacientesPage()
             var deferral = args.GetDeferral();
             try
             {
-                // ValidaciÛn
+                // Validaci√≥n
                 if (string.IsNullOrWhiteSpace(cedulaBox.Text))
                 {
-                    mensajeError = "La cÈdula es obligatoria";
+                    mensajeError = "La c√©dula es obligatoria";
                     args.Cancel = true;
                     return;
                 }
@@ -1224,13 +1384,13 @@ public PacientesPage()
         }
         catch (System.Runtime.InteropServices.COMException comEx)
         {
-            System.Diagnostics.Debug.WriteLine($"[PACIENTES] COM ERROR al mostrar di·logo: {comEx.Message}");
+            System.Diagnostics.Debug.WriteLine($"[PACIENTES] COM ERROR al mostrar di√°logo: {comEx.Message}");
             return null;
         }
 
         if (!string.IsNullOrEmpty(mensajeError))
         {
-            // Mostrar error despuÈs de cerrar el di·logo para evitar COMException por di·logos anidados
+            // Mostrar error despu√©s de cerrar el di√°logo para evitar COMException por di√°logos anidados
             await ShowInfoDialog("Error", mensajeError);
         }
 
@@ -1239,7 +1399,7 @@ public PacientesPage()
 
     private async Task<Donaciones> MostrarDialogoDonacion(Paciente paciente)
     {
-        // ImplementaciÛn b·sica del di·logo de donaciÛn
+        // Implementaci√≥n b√°sica del di√°logo de donaci√≥n
         var valorBox = new NumberBox
         {
             Header = "Monto Donado (RD$) *",
@@ -1259,14 +1419,14 @@ public PacientesPage()
         var procedimientoBox = new TextBox
         {
             Header = "Procedimiento",
-            PlaceholderText = "DescripciÛn del procedimiento mÈdico",
+            PlaceholderText = "Descripci√≥n del procedimiento m√©dico",
             MaxLength = 50
         };
 
         var observacionBox = new TextBox
         {
             Header = "Observaciones",
-            PlaceholderText = "Observaciones sobre la donaciÛn",
+            PlaceholderText = "Observaciones sobre la donaci√≥n",
             AcceptsReturn = true,
             TextWrapping = TextWrapping.Wrap,
             Height = 80,
@@ -1279,7 +1439,7 @@ public PacientesPage()
             Margin = new Thickness(0, 0, 0, 16)
         };
         infoPanel.Children.Add(new TextBlock { Text = $"Paciente: {paciente.nombre}", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-        infoPanel.Children.Add(new TextBlock { Text = $"CÈdula: {paciente.cedula}", FontSize = 12, Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray) });
+        infoPanel.Children.Add(new TextBlock { Text = $"C√©dula: {paciente.cedula}", FontSize = 12, Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray) });
 
         var formPanel = new StackPanel
         {
@@ -1296,7 +1456,7 @@ public PacientesPage()
 
         var dialog = new ContentDialog
         {
-            Title = "Registrar DonaciÛn",
+            Title = "Registrar Donaci√≥n",
             Content = formPanel,
             PrimaryButtonText = "Registrar",
             CloseButtonText = "Cancelar",
@@ -1310,7 +1470,7 @@ public PacientesPage()
         {
             if (valorBox.Value <= 0 || double.IsNaN(valorBox.Value))
             {
-                await ShowInfoDialog("Error", "Debe ingresar un monto v·lido");
+                await ShowInfoDialog("Error", "Debe ingresar un monto v√°lido");
                 return null;
             }
 
@@ -1365,7 +1525,7 @@ public PacientesPage()
     {
         try
         {
-            // Verificar que XamlRoot estÈ disponible
+            // Verificar que XamlRoot est√© disponible
             if (this.XamlRoot == null)
             {
                 System.Diagnostics.Debug.WriteLine($"[DIALOG] ERROR: XamlRoot es null");
@@ -1379,7 +1539,7 @@ public PacientesPage()
                 MaxWidth = 450
             };
 
-            // Icono seg˙n el tipo de mensaje
+            // Icono seg√∫n el tipo de mensaje
             string iconGlyph = "\uE946"; // Info por defecto
             Windows.UI.Color iconColor;
 
@@ -1388,12 +1548,12 @@ public PacientesPage()
                 iconGlyph = "\uE783"; // Error
                 iconColor = Windows.UI.Color.FromArgb(255, 196, 43, 28); // Rojo
             }
-            else if (title.Contains("…xito"))
+            else if (title.Contains("√âxito"))
             {
                 iconGlyph = "\uE73E"; // Checkmark
                 iconColor = Windows.UI.Color.FromArgb(255, 16, 124, 16); // Verde
             }
-            else if (title.Contains("InformaciÛn") || title.Contains("Advertencia"))
+            else if (title.Contains("Informaci√≥n") || title.Contains("Advertencia"))
             {
                 iconGlyph = "\uE946"; // Info
                 iconColor = Windows.UI.Color.FromArgb(255, 255, 185, 0); // Amarillo

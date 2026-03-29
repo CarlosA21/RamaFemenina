@@ -247,13 +247,10 @@ namespace RamaFemenina.Services
                     }
 
                     document.Add(table);
-                    
-                    // Asegurar que todo el contenido se escriba antes del cierre
-                    document.Flush();
                 }
+                // IMPORTANTE: El using se cierra aquí, garantizando que el PDF se escriba completamente
                 
-                // IMPORTANTE: Process.Start debe ejecutarse DESPUÉS del using para evitar el error
-                // Verificar que el archivo existe antes de abrirlo
+                // Abrir el archivo DESPUÉS de que se haya cerrado completamente
                 if (File.Exists(pdfFile))
                 {
                     Process.Start(new ProcessStartInfo { FileName = pdfFile, UseShellExecute = true });
@@ -334,6 +331,7 @@ namespace RamaFemenina.Services
 
                 document.Add(table);
             }
+            // El using se cierra aquí, garantizando que el PDF se escriba completamente
 
             Process.Start(new ProcessStartInfo { FileName = pdfFile, UseShellExecute = true });
             Debug.WriteLine($"[PDF] ? Reporte generado: {pdfFile}");
@@ -376,6 +374,7 @@ namespace RamaFemenina.Services
 
                 document.Add(table);
             }
+            // El using se cierra aquí, garantizando que el PDF se escriba completamente
 
             Process.Start(new ProcessStartInfo { FileName = pdfFile, UseShellExecute = true });
             Debug.WriteLine($"[PDF] ? Reporte generado: {pdfFile}");
@@ -419,6 +418,7 @@ namespace RamaFemenina.Services
 
                 document.Add(table);
             }
+            // El using se cierra aquí, garantizando que el PDF se escriba completamente
 
             Process.Start(new ProcessStartInfo { FileName = pdfFile, UseShellExecute = true });
             Debug.WriteLine($"[PDF] ? Reporte generado: {pdfFile}");
@@ -445,6 +445,7 @@ namespace RamaFemenina.Services
                 AgregarSeccionGenero(document, datosPorGenero);
                 AgregarPieDePagina(document, pdf.GetNumberOfPages());
             }
+            // El using se cierra aquí, garantizando que el PDF se escriba completamente
 
             Process.Start(new ProcessStartInfo { FileName = pdfFile, UseShellExecute = true });
             Debug.WriteLine($"[PDF] ? Reporte generado: {pdfFile}");
@@ -492,6 +493,7 @@ namespace RamaFemenina.Services
                 document.Add(new Paragraph("_________________________").SetTextAlignment(TextAlignment.CENTER));
                 document.Add(new Paragraph("Firma Autorizada").SetTextAlignment(TextAlignment.CENTER).SetFontSize(10));
             }
+            // El using se cierra aquí, garantizando que el PDF se escriba completamente
 
             Process.Start(new ProcessStartInfo { FileName = pdfFile, UseShellExecute = true });
             return pdfFile;
@@ -539,6 +541,7 @@ namespace RamaFemenina.Services
 
                 document.Add(table);
             }
+            // El using se cierra aquí, garantizando que el PDF se escriba completamente
 
             Process.Start(new ProcessStartInfo { FileName = pdfFile, UseShellExecute = true });
             return pdfFile;
@@ -577,6 +580,7 @@ namespace RamaFemenina.Services
 
                 document.Add(table);
             }
+            // El using se cierra aquí, garantizando que el PDF se escriba completamente
 
             Process.Start(new ProcessStartInfo { FileName = pdfFile, UseShellExecute = true });
             return pdfFile;

@@ -134,8 +134,8 @@ namespace RamaFemenina.Services
                 const string usuarioAdmin = "admin";
                 const string contrasenaAdmin = "admin123";
 
-                // Crear el usuario
-                var resultado = await CrearUsuarioAsync(usuarioAdmin, contrasenaAdmin);
+                // Crear el usuario con rol Admin
+                var resultado = await CrearUsuarioAsync(usuarioAdmin, contrasenaAdmin, "Admin");
 
                 if (resultado)
                 {
@@ -250,8 +250,9 @@ namespace RamaFemenina.Services
         /// </summary>
         /// <param name="usuario">Nombre de usuario</param>
         /// <param name="contraseña">Contraseña en texto plano</param>
+        /// <param name="rol">Rol del usuario (Admin o Moderador)</param>
         /// <returns>True si se creó exitosamente, False en caso contrario</returns>
-        public async Task<bool> CrearUsuarioAsync(string usuario, string contraseña)
+        public async Task<bool> CrearUsuarioAsync(string usuario, string contraseña, string rol = "Moderador")
         {
             if (string.IsNullOrWhiteSpace(usuario) || string.IsNullOrWhiteSpace(contraseña))
             {
@@ -261,7 +262,7 @@ namespace RamaFemenina.Services
 
             try
             {
-                System.Diagnostics.Debug.WriteLine($"[AUTH] ?? Creando nuevo usuario: '{usuario}'");
+                System.Diagnostics.Debug.WriteLine($"[AUTH] ?? Creando nuevo usuario: '{usuario}' con rol '{rol}'");
                 
                 // Optimización: Verificar existencia con AsNoTracking
                 var existeUsuario = await _context.Accesos
@@ -279,7 +280,8 @@ namespace RamaFemenina.Services
                 var nuevoAcceso = new Models.Acceso
                 {
                     Usuario = usuario,
-                    Contraseña = HashearContraseña(contraseña)
+                    Contraseña = HashearContraseña(contraseña),
+                    Rol = rol
                 };
 
                 System.Diagnostics.Debug.WriteLine($"[AUTH] ?? Guardando usuario en la base de datos...");
@@ -300,7 +302,7 @@ namespace RamaFemenina.Services
                     {
                         await transaction.CommitAsync();
                         
-                        System.Diagnostics.Debug.WriteLine($"[AUTH] ? Usuario '{usuario}' creado exitosamente");
+                        System.Diagnostics.Debug.WriteLine($"[AUTH] ? Usuario '{usuario}' creado exitosamente con rol '{rol}'");
                         System.Diagnostics.Debug.WriteLine($"[AUTH] ?? ID asignado: {nuevoAcceso.IdUsuario}");
                         
                         // Invalidar cache de conexión para forzar recarga
@@ -331,14 +333,14 @@ namespace RamaFemenina.Services
                 
                 // Método de respaldo con SQL directo
                 System.Diagnostics.Debug.WriteLine($"[AUTH] ?? Intentando creación con SQL directo...");
-                return await CrearUsuarioConSQLDirectoAsync(usuario, contraseña);
+                return await CrearUsuarioConSQLDirectoAsync(usuario, contraseña, rol);
             }
         }
 
         /// <summary>
         /// Método de respaldo: Crear usuario usando SQL directo (optimizado)
         /// </summary>
-        private async Task<bool> CrearUsuarioConSQLDirectoAsync(string usuario, string contraseña)
+        private async Task<bool> CrearUsuarioConSQLDirectoAsync(string usuario, string contraseña, string rol = "Moderador")
         {
             try
             {
@@ -347,12 +349,13 @@ namespace RamaFemenina.Services
                 var hashContraseña = HashearContraseña(contraseña);
                 
                 // SQL directo optimizado
-                var sql = @"INSERT INTO acceso (usuario, contraseña) VALUES (@usuario, @contraseña)";
+                var sql = @"INSERT INTO acceso (usuario, contraseña, rol) VALUES (@usuario, @contraseña, @rol)";
                 
                 var parametros = new[]
                 {
                     new Microsoft.Data.SqlClient.SqlParameter("@usuario", usuario),
-                    new Microsoft.Data.SqlClient.SqlParameter("@contraseña", hashContraseña)
+                    new Microsoft.Data.SqlClient.SqlParameter("@contraseña", hashContraseña),
+                    new Microsoft.Data.SqlClient.SqlParameter("@rol", rol)
                 };
                 
                 var filasAfectadas = await _context.Database.ExecuteSqlRawAsync(sql, parametros);

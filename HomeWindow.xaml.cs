@@ -3,6 +3,9 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Navigation;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
+using RamaFemenina.Services;
 
 namespace RamaFemenina;
 
@@ -11,6 +14,8 @@ namespace RamaFemenina;
 /// </summary>
 public sealed partial class HomeWindow : Window
 {
+    private string? _currentUserName;
+
     public HomeWindow()
     {
         InitializeComponent();
@@ -51,9 +56,110 @@ public sealed partial class HomeWindow : Window
 
     public void SetUserName(string userName)
     {
+        _currentUserName = userName;
+        
         if (!string.IsNullOrEmpty(userName) && txtUserName != null)
         {
             txtUserName.Text = userName;
+        }
+
+        // Aplicar restricciones según el rol del usuario
+        ConfigurarPermisosPorRol();
+    }
+
+    /// <summary>
+    /// Configura los permisos basados en el rol del usuario actual
+    /// </summary>
+    private async void ConfigurarPermisosPorRol()
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(_currentUserName))
+            {
+                System.Diagnostics.Debug.WriteLine($"[HomeWindow] No hay usuario, asumiendo Moderador por defecto");
+                OcultarMenuCheques();
+                return;
+            }
+
+            var app = Application.Current as App;
+            var authService = app?.Services.GetService<AuthenticationService>();
+
+            if (authService != null)
+            {
+                // Obtener el usuario de la base de datos
+                using var scope = app!.Services.CreateScope();
+                using var context = scope.ServiceProvider.GetRequiredService<Data.RamaFemeninaContext>();
+                
+                var usuario = await context.Accesos
+                    .FirstOrDefaultAsync(a => a.Usuario == _currentUserName);
+
+                if (usuario != null)
+                {
+                    var rol = usuario.Rol ?? "Moderador";
+                    System.Diagnostics.Debug.WriteLine($"[HomeWindow] Configurando permisos para usuario '{_currentUserName}' con rol: {rol}");
+
+                    // Si es Moderador, ocultar el menú de Cheques
+                    if (rol == "Moderador")
+                    {
+                        OcultarMenuCheques();
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[HomeWindow] Usuario es Admin - se muestra menú completo");
+                    }
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"[HomeWindow] Usuario no encontrado, asumiendo Moderador");
+                    OcultarMenuCheques();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[HomeWindow] Error al configurar permisos: {ex.Message}");
+            // Por seguridad, ocultar cheques si hay error
+            OcultarMenuCheques();
+        }
+    }
+
+    /// <summary>
+    /// Oculta el menú de Cheques del NavigationView
+    /// </summary>
+    private void OcultarMenuCheques()
+    {
+        try
+        {
+            if (NavView == null || NavView.MenuItems == null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[HomeWindow] NavView o MenuItems es null");
+                return;
+            }
+
+            // Buscar el item de Cheques por el Tag
+            NavigationViewItem? itemCheques = null;
+            foreach (var item in NavView.MenuItems)
+            {
+                if (item is NavigationViewItem nvi && nvi.Tag?.ToString() == "Cheques")
+                {
+                    itemCheques = nvi;
+                    break;
+                }
+            }
+
+            if (itemCheques != null)
+            {
+                NavView.MenuItems.Remove(itemCheques);
+                System.Diagnostics.Debug.WriteLine($"[HomeWindow] ✅ Menú de Cheques ocultado para Moderador");
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"[HomeWindow] ⚠️ No se encontró el menú de Cheques");
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[HomeWindow] Error al ocultar menú de Cheques: {ex.Message}");
         }
     }
 

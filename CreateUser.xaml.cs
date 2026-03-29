@@ -57,6 +57,7 @@ namespace RamaFemenina
                     Usuarios.Add(new UsuarioViewModel
                     {
                         Usuario = acceso.Usuario,
+                        Rol = acceso.Rol ?? "Moderador",
                         EsBCrypt = esBCrypt,
                         FechaCreacion = "Usuario registrado",
                         EstadoSeguridad = esBCrypt ? "Seguro" : "Inseguro",
@@ -110,6 +111,7 @@ namespace RamaFemenina
         {
             var usuario = txtNuevoUsuario.Text.Trim();
             var contraseña = pwdNuevaContraseña.Password;
+            var rolSeleccionado = (cmbRol.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "Moderador";
 
             if (Usuarios.Any(u => u.Usuario.Equals(usuario, StringComparison.OrdinalIgnoreCase)))
             {
@@ -124,7 +126,7 @@ namespace RamaFemenina
 
             try
             {
-                bool creado = await _authService.CrearUsuarioAsync(usuario, contraseña);
+                bool creado = await _authService.CrearUsuarioAsync(usuario, contraseña, rolSeleccionado);
                 if (creado)
                 {
                     txtMensajeCreacion.Text = "? Usuario creado exitosamente";
@@ -259,6 +261,13 @@ namespace RamaFemenina
         public string EstadoSeguridad { get => _estadoSeguridad; set { _estadoSeguridad = value; OnPropertyChanged(); } }
         public string IconoSeguridad { get => _iconoSeguridad; set { _iconoSeguridad = value; OnPropertyChanged(); } }
         public SolidColorBrush ColorSeguridad { get => _colorSeguridad; set { _colorSeguridad = value; OnPropertyChanged(); } }
+        
+        public string Rol { get; set; }
+        public string RolDisplay => Rol == "Admin" ? "Administrador" : "Moderador";
+        public string RolIcono => Rol == "Admin" ? "??" : "??";
+        public SolidColorBrush RolColor => Rol == "Admin" 
+            ? new SolidColorBrush(Windows.UI.Color.FromArgb(40, 255, 215, 0)) 
+            : new SolidColorBrush(Windows.UI.Color.FromArgb(40, 100, 149, 237));
 
         public event PropertyChangedEventHandler PropertyChanged;
         private void OnPropertyChanged([CallerMemberName] string propertyName = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));

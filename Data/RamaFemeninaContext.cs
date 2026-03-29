@@ -297,12 +297,11 @@ namespace RamaFemenina.Data
                 entity.HasKey(e => e.IdRecibo);
                 entity.Property(e => e.IdRecibo)
                     .HasColumnName("idrecibo")
-                    .ValueGeneratedOnAdd()
-                    .UseIdentityColumn();
+                    .ValueGeneratedNever(); // No es identity en la BD, se asigna manualmente (MAX+1)
                 
                 entity.Property(e => e.NumeroRecibo)
                     .HasColumnName("nrecibo")
-                    .ValueGeneratedNever(); // EF no incluirá esta columna en INSERT/UPDATE
+                    .ValueGeneratedNever(); // Se asigna manualmente (MAX+1)
                     
                 entity.Property(e => e.Fecha)
                     .HasColumnName("fecha")

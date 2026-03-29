@@ -56,7 +56,7 @@ public sealed partial class ChequesPage : Page, INotifyPropertyChanged
     private float conceptoY = 115;
     private float fechaCirculoX = 8;
     private float fechaCirculoY = 115;
-    private float montoCirculoX = 198;
+    private float montoCirculoX = 195;
     private float montoCirculoY = 115;
     // Tamaño de fuente independiente para la fecha en el círculo (más pequeña)
     private float fechaCirculoFontSize = 9f;
@@ -1029,7 +1029,7 @@ public sealed partial class ChequesPage : Page, INotifyPropertyChanged
 
             // Usar tamaño de página Media Carta en retrato: 9.5 x 5.5 pulgadas
             int InchesToHundredths(float inches) => (int)Math.Round(inches * 100f);
-            var halfLetterSize = new PaperSize("MediaCarta", InchesToHundredths(9.5f), InchesToHundredths(5.5f))
+            var halfLetterSize = new PaperSize("MediaCarta", InchesToHundredths(9.5f), InchesToHundredths(6.5f))
             {
                 RawKind = (int)PaperKind.Custom
             };

@@ -116,8 +116,18 @@ namespace RamaFemenina
             {
                 LogInfo("Configurando DbContext...");
                 services.AddDbContext<RamaFemeninaContext>(options =>
-                    options.UseSqlServer(connectionString));
-                LogInfo("DbContext configurado");
+                    options.UseSqlServer(connectionString, sqlOptions =>
+                    {
+                        // Habilitar reintentos automáticos para errores transitorios
+                        sqlOptions.EnableRetryOnFailure(
+                            maxRetryCount: 5,
+                            maxRetryDelay: TimeSpan.FromSeconds(10),
+                            errorNumbersToAdd: null);
+                        
+                        // Configurar timeouts
+                        sqlOptions.CommandTimeout(60); // 60 segundos para comandos SQL
+                    }));
+                LogInfo("DbContext configurado con resiliencia de reintentos");
 
                 LogInfo("Registrando servicios...");
                 services.AddScoped<AuthenticationService>();

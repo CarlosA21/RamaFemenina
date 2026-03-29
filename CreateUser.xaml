@@ -71,6 +71,15 @@
                             <TextBlock x:Name="txtConfirmarError" Text="⚠️ Las contraseñas no coinciden" Foreground="Red" Style="{StaticResource CaptionTextBlockStyle}" Visibility="Collapsed"/>
                         </StackPanel>
 
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Rol del Usuario" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <ComboBox x:Name="cmbRol" Height="40" HorizontalAlignment="Stretch" SelectedIndex="1">
+                                <ComboBoxItem Content="👑 Administrador" Tag="Admin" ToolTipService.ToolTip="Acceso completo al sistema, incluyendo gestión de cheques"/>
+                                <ComboBoxItem Content="👤 Moderador" Tag="Moderador" ToolTipService.ToolTip="Acceso limitado - No puede gestionar cheques"/>
+                            </ComboBox>
+                            <InfoBar Severity="Warning" IsOpen="True" IsClosable="False" Title="Importante" Message="Los Moderadores NO tendrán acceso al módulo de Cheques"/>
+                        </StackPanel>
+
                         <InfoBar Severity="Informational" IsOpen="True" IsClosable="False" Title="Seguridad" Message="Las contraseñas se encriptan con BCrypt. Use al menos 8 caracteres."/>
 
                         <Button x:Name="btnCrearUsuario" Content="Crear Usuario" Click="BtnCrearUsuario_Click" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Stretch" Height="44" IsEnabled="False"/>
@@ -105,13 +114,21 @@
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <PersonPicture Grid.Column="0" Width="40" Height="40" Margin="0,0,12,0"/>
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
                                         <TextBlock Text="{Binding Usuario}" Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                                        <TextBlock Text="{Binding FechaCreacion}" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="{Binding RolDisplay}" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource AccentFillColorDefaultBrush}" FontWeight="SemiBold"/>
+                                            <TextBlock Text="•" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                            <TextBlock Text="{Binding FechaCreacion}" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                        </StackPanel>
                                     </StackPanel>
-                                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="4">
+                                    <Border Grid.Column="2" Background="{Binding RolColor}" CornerRadius="4" Padding="8,4" Margin="0,0,12,0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding RolIcono}" FontSize="16"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="4">
                                         <FontIcon Glyph="{Binding IconoSeguridad}" FontSize="20" Foreground="{Binding ColorSeguridad}"/>
                                         <TextBlock Text="{Binding EstadoSeguridad}" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                     </StackPanel>

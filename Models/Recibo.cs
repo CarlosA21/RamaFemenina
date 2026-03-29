@@ -10,13 +10,12 @@ namespace RamaFemenina.Models
     public class Recibo
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [DatabaseGenerated(DatabaseGeneratedOption.None)]
         [Column("idrecibo")]
         public int IdRecibo { get; set; }
         
         [Column("nrecibo")]
-        [DatabaseGenerated(DatabaseGeneratedOption.Computed)] // Generado por la BD (sequence + default)
-        public int NumeroRecibo { get; set; }
+        public int? NumeroRecibo { get; set; }
         
         [Required]
         [Column("fecha")]
@@ -49,13 +48,13 @@ namespace RamaFemenina.Models
         
         // Tipo de pago
         [Column("efect")]
-        public bool EsEfectivo { get; set; }
+        public bool? EsEfectivo { get; set; }
         
         [Column("trans")]
-        public bool EsTransferencia { get; set; }
+        public bool? EsTransferencia { get; set; }
         
         [Column("cheq")]
-        public bool EsCheque { get; set; }
+        public bool? EsCheque { get; set; }
         
         // Datos de transferencia
         [Column("factura")]
@@ -83,9 +82,9 @@ namespace RamaFemenina.Models
         {
             get
             {
-                if (EsEfectivo) return "Efectivo";
-                if (EsTransferencia) return "Transferencia";
-                if (EsCheque) return "Cheque";
+                if (EsEfectivo == true) return "Efectivo";
+                if (EsTransferencia == true) return "Transferencia";
+                if (EsCheque == true) return "Cheque";
                 return "No especificado";
             }
         }
@@ -95,9 +94,9 @@ namespace RamaFemenina.Models
         {
             get
             {
-                if (EsEfectivo) return new SolidColorBrush(Colors.Green);
-                if (EsTransferencia) return new SolidColorBrush(Colors.Blue);
-                if (EsCheque) return new SolidColorBrush(Colors.Orange);
+                if (EsEfectivo == true) return new SolidColorBrush(Colors.Green);
+                if (EsTransferencia == true) return new SolidColorBrush(Colors.Blue);
+                if (EsCheque == true) return new SolidColorBrush(Colors.Orange);
                 return new SolidColorBrush(Colors.Gray);
             }
         }
@@ -107,9 +106,9 @@ namespace RamaFemenina.Models
         {
             get
             {
-                if (EsTransferencia && !string.IsNullOrEmpty(NumeroFacturaNCF))
+                if (EsTransferencia == true && !string.IsNullOrEmpty(NumeroFacturaNCF))
                     return $"NCF: {NumeroFacturaNCF}";
-                if (EsCheque && !string.IsNullOrEmpty(Cedula))
+                if (EsCheque == true && !string.IsNullOrEmpty(Cedula))
                     return $"Cheque: {Cedula} - {Banco ?? ""}";
                 return string.Empty;
             }

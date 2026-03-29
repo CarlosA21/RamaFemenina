@@ -29,7 +29,7 @@ namespace RamaFemenina.Services
     {
         // Tamaño Media Carta: 5.5" ancho x 8.5" alto (396 x 612 puntos) en vertical
         private static readonly PageSize MEDIA_CARTA = new PageSize(500f, 612f);
-        
+
         private const float MARGIN_LEFT = 15f;
         private const float MARGIN_RIGHT = 15f;
         private const float MARGIN_TOP = 8f;  // Ajustado para aprovechar más el área
@@ -43,12 +43,12 @@ namespace RamaFemenina.Services
             return await Task.Run(() =>
             {
                 using var memoryStream = new MemoryStream();
-                
+
                 // Crear documento PDF en tamaño Media Carta (5.5" x 8.5")
                 var writer = new PdfWriter(memoryStream);
                 var pdf = new PdfDocument(writer);
                 var document = new Document(pdf, MEDIA_CARTA);
-                
+
                 // Configurar márgenes reducidos para aprovechar el espacio
                 document.SetMargins(MARGIN_TOP, MARGIN_RIGHT, MARGIN_BOTTOM, MARGIN_LEFT);
 
@@ -158,7 +158,7 @@ namespace RamaFemenina.Services
                     {
                         System.Diagnostics.Debug.WriteLine($"[ReciboPdfService] 🔄 Convirtiendo ICO a PNG...");
                         string rutaPngConvertido = ConvertirIcoAPng(rutaIco);
-                        
+
                         if (!string.IsNullOrEmpty(rutaPngConvertido) && File.Exists(rutaPngConvertido))
                         {
                             System.Diagnostics.Debug.WriteLine($"[ReciboPdfService] ✅ Logo convertido: {rutaPngConvertido}");
@@ -184,7 +184,7 @@ namespace RamaFemenina.Services
             try
             {
                 string rutaPng = IOPath.ChangeExtension(rutaIco, ".png");
-                
+
                 if (File.Exists(rutaPng))
                 {
                     return rutaPng;
@@ -219,7 +219,7 @@ namespace RamaFemenina.Services
                 {
                     // Crear una tabla interna para alinear logo y texto horizontalmente
                     var tablaLogoTexto = new Table(UnitValue.CreatePercentArray(new float[] { 0.4f, 1f })).UseAllAvailableWidth();
-                    
+
                     // Celda del logo
                     var celdaLogo = new Cell().SetBorder(iText.Layout.Borders.Border.NO_BORDER)
                         .SetVerticalAlignment(VerticalAlignment.MIDDLE)
@@ -228,7 +228,7 @@ namespace RamaFemenina.Services
                     var logo = new PdfImage(ImageDataFactory.Create(logoPath));
                     logo.ScaleToFit(50f, 50f);
                     celdaLogo.Add(logo);
-                    
+
                     // Celda del texto al lado del logo
                     var celdaTexto = new Cell().SetBorder(iText.Layout.Borders.Border.NO_BORDER)
                         .SetVerticalAlignment(VerticalAlignment.MIDDLE)
@@ -242,11 +242,11 @@ namespace RamaFemenina.Services
                     // Mover ligeramente hacia la izquierda para centrar bajo la línea anterior
                     celdaTexto.Add(new Paragraph("Desde 1951")
                         .SetFont(fontBold).SetFontSize(8).SetMargin(0).SetMarginLeft(10f));
-                    
+
                     // Agregar ambas celdas a la tabla interna
                     tablaLogoTexto.AddCell(celdaLogo);
                     tablaLogoTexto.AddCell(celdaTexto);
-                    
+
                     // Agregar la tabla interna a la celda principal
                     table.AddCell(new Cell()
                         .Add(tablaLogoTexto)
@@ -285,7 +285,7 @@ namespace RamaFemenina.Services
                 .SetVerticalAlignment(VerticalAlignment.MIDDLE));
 
             document.Add(table);
-            
+
             // Línea separadora
             document.Add(new Paragraph()
                 .SetBorderBottom(new iText.Layout.Borders.SolidBorder(ColorConstants.BLACK, 1.5f))
@@ -329,7 +329,7 @@ namespace RamaFemenina.Services
                 .SetBorder(iText.Layout.Borders.Border.NO_BORDER));
 
             document.Add(table);
-            
+
             document.Add(new Paragraph()
                 .SetBorderBottom(new iText.Layout.Borders.SolidBorder(ColorConstants.BLACK, 1f))
                 .SetMarginTop(2)  // Reducido
@@ -354,8 +354,8 @@ namespace RamaFemenina.Services
                 .SetMarginBottom(2));  // Reducido
 
             // Monto en letras
-            var montoLetras = !string.IsNullOrEmpty(recibo.MontoEnLetras) 
-                ? recibo.MontoEnLetras 
+            var montoLetras = !string.IsNullOrEmpty(recibo.MontoEnLetras)
+                ? recibo.MontoEnLetras
                 : ConvertirNumeroALetras(recibo.Monto);
             document.Add(new Paragraph(montoLetras)
                 .SetFont(fontBold)
@@ -383,7 +383,7 @@ namespace RamaFemenina.Services
             tablaPago.SetBorder(new iText.Layout.Borders.SolidBorder(ColorConstants.BLACK, 1f));
 
             // ====== FILA 1: Efectivo | [X] | Transf. | [ ] | No. fact. NCF: | ______ | (colspan 2 vacío) ======
-            
+
             // Celda "Efectivo"
             tablaPago.AddCell(new Cell()
                 .Add(new Paragraph("Efectivo").SetFont(fontBold).SetFontSize(8))
@@ -393,7 +393,7 @@ namespace RamaFemenina.Services
 
             // Checkbox Efectivo
             tablaPago.AddCell(new Cell()
-                .Add(CrearCuadroCheckbox(recibo.EsEfectivo))
+                .Add(CrearCuadroCheckbox((recibo.EsEfectivo ?? false)))
                 .SetBorder(iText.Layout.Borders.Border.NO_BORDER)
                 .SetPadding(1)
                 .SetVerticalAlignment(VerticalAlignment.MIDDLE));
@@ -407,7 +407,7 @@ namespace RamaFemenina.Services
 
             // Checkbox Transferencia
             tablaPago.AddCell(new Cell()
-                .Add(CrearCuadroCheckbox(recibo.EsTransferencia))
+                .Add(CrearCuadroCheckbox((recibo.EsTransferencia ?? false)))
                 .SetBorder(iText.Layout.Borders.Border.NO_BORDER)
                 .SetPadding(1)
                 .SetVerticalAlignment(VerticalAlignment.MIDDLE));
@@ -438,7 +438,7 @@ namespace RamaFemenina.Services
                 .SetBorder(iText.Layout.Borders.Border.NO_BORDER));
 
             // ====== FILA 2: Cheque | [ ] | No.: | ______ | Banco: | ______ ======
-            
+
             // Celda "Cheque"
             tablaPago.AddCell(new Cell()
                 .Add(new Paragraph("Cheque").SetFont(fontBold).SetFontSize(8))
@@ -448,7 +448,7 @@ namespace RamaFemenina.Services
 
             // Checkbox Cheque
             tablaPago.AddCell(new Cell()
-                .Add(CrearCuadroCheckbox(recibo.EsCheque))
+                .Add(CrearCuadroCheckbox((recibo.EsCheque ?? false)))
                 .SetBorder(iText.Layout.Borders.Border.NO_BORDER)
                 .SetPadding(1)
                 .SetVerticalAlignment(VerticalAlignment.MIDDLE));
@@ -461,7 +461,7 @@ namespace RamaFemenina.Services
                 .SetVerticalAlignment(VerticalAlignment.MIDDLE));
 
             // Número de cheque con línea
-            var numCheque = recibo.EsCheque ? (recibo.NumeroCheque ?? "") : "";
+            var numCheque = (recibo.EsCheque ?? false) ? (recibo.NumeroCheque ?? "") : "";
             tablaPago.AddCell(new Cell()
                 .Add(new Paragraph(numCheque)
                     .SetFont(fontRegular)
@@ -671,14 +671,14 @@ namespace RamaFemenina.Services
         {
             var tempPath = IOPath.Combine(IOPath.GetTempPath(), $"Recibo_{recibo.NumeroRecibo}_{DateTime.Now:yyyyMMddHHmmss}.pdf");
             await GuardarReciboPdfAsync(recibo, tempPath, logoPath);
-            
+
             // Abrir con el visor predeterminado de Windows
             var processStartInfo = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = tempPath,
                 UseShellExecute = true
             };
-            
+
             System.Diagnostics.Process.Start(processStartInfo);
         }
     }

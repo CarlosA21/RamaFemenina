@@ -19,5 +19,9 @@ namespace RamaFemenina.Models
         [Required]
         [Column("contraseña")]
         public string Contraseña { get; set; } = string.Empty;
+
+        [Column("rol")]
+        [MaxLength(20)]
+        public string? Rol { get; set; } = "Moderador";
     }
 }

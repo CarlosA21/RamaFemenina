@@ -183,6 +183,18 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
     {
         System.Diagnostics.Debug.WriteLine("[ReciboPage] ==================== INICIO CONSTRUCTOR ====================");
         
+        // Inicializar servicios antes de cargar XAML para evitar accesos nulos
+        var app = Application.Current as App;
+        if (app?.Services == null)
+        {
+            System.Diagnostics.Debug.WriteLine("[ReciboPage] Error: ServiceProvider no inicializado");
+            throw new InvalidOperationException("ServiceProvider no inicializado");
+        }
+
+        _serviceProvider = app.Services;
+        _cacheService = app.Services.GetRequiredService<DataCacheService>();
+        _ncfSequenceService = new NcfSequenceService();
+        
         // Inicializar la colección
         RecibosCollection = new ObservableCollection<Recibo>();
         
@@ -190,11 +202,6 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
         
         // Habilitar caché de navegación
         NavigationCacheMode = NavigationCacheMode.Enabled;
-        
-        var app = Application.Current as App;
-        _serviceProvider = app!.Services;
-        _cacheService = app.Services.GetRequiredService<DataCacheService>();
-        _ncfSequenceService = new NcfSequenceService();
         
         // Inicialización de timer para búsqueda con delay
         _searchDelayTimer = new Timer(PerformSearch, null, Timeout.Infinite, Timeout.Infinite);
@@ -250,19 +257,50 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
         
         try
         {
-            // Verificar que la tabla existe
-            bool tableExists = await VerifyTableExistsAsync();
+            // Verificar que la tabla existe con manejo de errores de red
+            bool tableExists = false;
+            int retries = 0;
+            const int maxRetries = 3;
+            
+            while (retries < maxRetries && !tableExists)
+            {
+                try
+                {
+                    tableExists = await VerifyTableExistsAsync();
+                    break;
+                }
+                catch (Exception ex) when (ex.Message.Contains("transient") || ex.Message.Contains("timeout") || ex.Message.Contains("connection"))
+                {
+                    retries++;
+                    if (retries < maxRetries)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[ReciboPage] Reintentando verificación de tabla ({retries}/{maxRetries})...");
+                        await Task.Delay(1000 * retries); // Espera incremental
+                    }
+                    else
+                    {
+                        throw; // Falló después de todos los reintentos
+                    }
+                }
+            }
             
             if (!tableExists)
             {
-                if (EmptyState != null)
-                    EmptyState.Visibility = Visibility.Visible;
-                if (this.FindName("ListViewScroller") is UIElement listScrollerEmpty)
-                    listScrollerEmpty.Visibility = Visibility.Collapsed;
-                
-                await ShowInfoDialog("Tabla No Encontrada", 
-                    "La tabla 'Recibo' no existe en la base de datos.\n\n" +
-                    "Por favor, ejecute el script 'FixDatabaseErrors.sql' para crear la tabla.");
+                await DispatcherQueue.EnqueueAsync(async () =>
+                {
+                    if (EmptyState != null)
+                        EmptyState.Visibility = Visibility.Visible;
+                    if (this.FindName("ListViewScroller") is UIElement listScrollerEmpty)
+                        listScrollerEmpty.Visibility = Visibility.Collapsed;
+                    
+                    await ShowInfoDialog("Error de Conexión", 
+                        "No se puede conectar al servidor de base de datos.\n\n" +
+                        "Verifique:\n" +
+                        "• Que el servidor SQL esté activo\n" +
+                        "• Que la dirección IP sea correcta en appsettings.json\n" +
+                        "• Que no haya firewall bloqueando la conexión\n\n" +
+                        "Error técnico: Timeout de conexión TCP al servidor.");
+                });
                 return;
             }
 
@@ -271,27 +309,30 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
 
             if (!_isPageActive) return;
             
-            RecibosCollection.Clear();
-            foreach (var recibo in recibos)
+            await DispatcherQueue.EnqueueAsync(() =>
             {
-                CleanReciboData(recibo);
-                RecibosCollection.Add(recibo);
-            }
+                RecibosCollection.Clear();
+                foreach (var recibo in recibos)
+                {
+                    CleanReciboData(recibo);
+                    RecibosCollection.Add(recibo);
+                }
 
-            CurrentPage = page;
-            TotalCount = totalCount;
+                CurrentPage = page;
+                TotalCount = totalCount;
 
-            // Actualizar controles de UI
-            if (RecibosListView != null)
-                RecibosListView.ItemsSource = RecibosCollection;
-            
-            var hayRecibos = RecibosCollection.Count > 0;
-            if (this.FindName("ListViewScroller") is UIElement listScrollerMain)
-                listScrollerMain.Visibility = hayRecibos ? Visibility.Visible : Visibility.Collapsed;
-            if (EmptyState != null)
-                EmptyState.Visibility = hayRecibos ? Visibility.Collapsed : Visibility.Visible;
-            
-            UpdatePaginationControls();
+                // Actualizar controles de UI
+                if (RecibosListView != null)
+                    RecibosListView.ItemsSource = RecibosCollection;
+                
+                var hayRecibos = RecibosCollection.Count > 0;
+                if (this.FindName("ListViewScroller") is UIElement listScrollerMain)
+                    listScrollerMain.Visibility = hayRecibos ? Visibility.Visible : Visibility.Collapsed;
+                if (EmptyState != null)
+                    EmptyState.Visibility = hayRecibos ? Visibility.Collapsed : Visibility.Visible;
+                
+                UpdatePaginationControls();
+            });
             
             if (updateStats && _isPageActive)
             {
@@ -301,6 +342,14 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Error al cargar recibos: {ex.Message}");
+            
+            await DispatcherQueue.EnqueueAsync(async () =>
+            {
+                await ShowInfoDialog("Error al Cargar Datos",
+                    $"No se pudieron cargar los recibos.\n\n" +
+                    $"Error: {ex.Message}\n\n" +
+                    $"Por favor verifique su conexión al servidor de base de datos.");
+            });
         }
     }
 
@@ -308,6 +357,12 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
     {
         try
         {
+            if (_serviceProvider == null)
+            {
+                System.Diagnostics.Debug.WriteLine("[ReciboPage] Error: ServiceProvider null al verificar tabla");
+                return false;
+            }
+
             System.Diagnostics.Debug.WriteLine("[ReciboPage] Verificando existencia de tabla inrecibo...");
             
             // Usar una instancia separada del contexto
@@ -797,7 +852,7 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
             if (resultado != null)
             {
                 // Normalizar flags de método de pago (garantizar un 0/1)
-                if (!(resultado.EsEfectivo || resultado.EsTransferencia || resultado.EsCheque))
+                if (!(resultado.EsEfectivo == true || resultado.EsTransferencia == true || resultado.EsCheque == true))
                 {
                     resultado.EsEfectivo = true; // Por defecto efectivo
                 }
@@ -805,13 +860,26 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
                 {
                     // Asegurar exclusividad
                     resultado.EsEfectivo = resultado.EsEfectivo;
-                    resultado.EsTransferencia = resultado.EsTransferencia && !resultado.EsEfectivo && !resultado.EsCheque;
-                    resultado.EsCheque = resultado.EsCheque && !resultado.EsEfectivo && !resultado.EsTransferencia;
+                    resultado.EsTransferencia = (resultado.EsTransferencia == true) && !(resultado.EsEfectivo == true) && !(resultado.EsCheque == true);
+                    resultado.EsCheque = (resultado.EsCheque == true) && !(resultado.EsEfectivo == true) && !(resultado.EsTransferencia == true);
                 }
                 try
                 {
                     using var scope = _serviceProvider.CreateScope();
                     using var context = scope.ServiceProvider.GetRequiredService<RamaFemeninaContext>();
+                    
+                    // Calcular el siguiente IdRecibo y NumeroRecibo (MAX + 1)
+                    var maxIdRecibo = await context.Recibos.AnyAsync()
+                        ? await context.Recibos.MaxAsync(r => r.IdRecibo)
+                        : 0;
+                    var maxNumeroRecibo = await context.Recibos.AnyAsync()
+                        ? await context.Recibos.MaxAsync(r => (int?)r.NumeroRecibo) ?? 0
+                        : 0;
+                    
+                    resultado.IdRecibo = maxIdRecibo + 1;
+                    resultado.NumeroRecibo = maxNumeroRecibo + 1;
+                    
+                    System.Diagnostics.Debug.WriteLine($"[BTN-NUEVO] Asignando IdRecibo={resultado.IdRecibo}, NumeroRecibo={resultado.NumeroRecibo}");
                     
                     context.Recibos.Add(resultado);
                     await context.SaveChangesAsync().ConfigureAwait(false);
@@ -1231,25 +1299,38 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
             MontoEnLetras = ConvertirNumeroALetras(monto),
             Concepto = txtReciboRapidoConcepto.Text.Trim(),
             EsEfectivo = metodoPagoSeleccionado == "Efectivo",
-            EsTransferencia = metodoPagoSeleccionado == "Transferencia",
-            EsCheque = metodoPagoSeleccionado == "Cheque"
+            EsCheque = metodoPagoSeleccionado == "Cheque",
+            EsTransferencia = metodoPagoSeleccionado == "Transferencia"
         };
 
         // Normalizar flags (garantizar un 0/1 y exclusividad)
-        if (!(nuevoRecibo.EsEfectivo || nuevoRecibo.EsTransferencia || nuevoRecibo.EsCheque))
+        if (!(nuevoRecibo.EsEfectivo == true || nuevoRecibo.EsTransferencia == true || nuevoRecibo.EsCheque == true))
         {
             nuevoRecibo.EsEfectivo = true;
         }
         else
         {
-            nuevoRecibo.EsTransferencia = nuevoRecibo.EsTransferencia && !nuevoRecibo.EsEfectivo && !nuevoRecibo.EsCheque;
-            nuevoRecibo.EsCheque = nuevoRecibo.EsCheque && !nuevoRecibo.EsEfectivo && !nuevoRecibo.EsTransferencia;
+            nuevoRecibo.EsTransferencia = (nuevoRecibo.EsTransferencia == true) && !(nuevoRecibo.EsEfectivo == true) && !(nuevoRecibo.EsCheque == true);
+            nuevoRecibo.EsCheque = (nuevoRecibo.EsCheque == true) && !(nuevoRecibo.EsEfectivo == true) && !(nuevoRecibo.EsTransferencia == true);
         }
 
         try
         {
             using var scope = _serviceProvider.CreateScope();
             using var context = scope.ServiceProvider.GetRequiredService<RamaFemeninaContext>();
+            
+            // Calcular el siguiente IdRecibo y NumeroRecibo (MAX + 1)
+            var maxIdRecibo = await context.Recibos.AnyAsync()
+                ? await context.Recibos.MaxAsync(r => r.IdRecibo)
+                : 0;
+            var maxNumeroRecibo = await context.Recibos.AnyAsync()
+                ? await context.Recibos.MaxAsync(r => (int?)r.NumeroRecibo) ?? 0
+                : 0;
+            
+            nuevoRecibo.IdRecibo = maxIdRecibo + 1;
+            nuevoRecibo.NumeroRecibo = maxNumeroRecibo + 1;
+            
+            System.Diagnostics.Debug.WriteLine($"[RECIBO-RAPIDO] Asignando IdRecibo={nuevoRecibo.IdRecibo}, NumeroRecibo={nuevoRecibo.NumeroRecibo}");
             
             context.Recibos.Add(nuevoRecibo);
             await context.SaveChangesAsync().ConfigureAwait(false);
@@ -1350,9 +1431,27 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
         var txtNumero = new TextBox
         {
             Header = "Número de Recibo",
-            PlaceholderText = "Se genera automáticamente",
+            PlaceholderText = "Calculando...",
             IsReadOnly = true
         };
+
+        // Mostrar el próximo número de recibo al crear uno nuevo
+        if (reciboExistente == null)
+        {
+            try
+            {
+                using var scopeNum = _serviceProvider.CreateScope();
+                using var contextNum = scopeNum.ServiceProvider.GetRequiredService<RamaFemeninaContext>();
+                var maxNumero = await contextNum.Recibos.AnyAsync()
+                    ? await contextNum.Recibos.MaxAsync(r => (int?)r.NumeroRecibo) ?? 0
+                    : 0;
+                txtNumero.Text = (maxNumero + 1).ToString();
+            }
+            catch
+            {
+                txtNumero.PlaceholderText = "Se genera automáticamente";
+            }
+        }
 
         var txtTipo = new ComboBox
         {
@@ -1404,6 +1503,9 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
         cmbPago.Items.Add(new ComboBoxItem { Content = "?? Cheque", Tag = "Cheque" });
         cmbPago.SelectedIndex = 0;
 
+        // Campo de referencia/factura siempre visible
+        var txtNumeroFactura = new TextBox { Header = "Número de Referencia/Factura", PlaceholderText = "Referencia de transferencia / NCF" };
+
         // Campos adicionales según método de pago
         var panelCheque = new StackPanel { Spacing = 8, Visibility = Visibility.Collapsed };
         var txtNumeroCheque = new TextBox { Header = "Número de Cheque", PlaceholderText = "000000" };
@@ -1411,20 +1513,14 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
         panelCheque.Children.Add(txtNumeroCheque);
         panelCheque.Children.Add(txtBanco);
 
-        var panelTransferencia = new StackPanel { Spacing = 8, Visibility = Visibility.Collapsed };
-        var txtNumeroFactura = new TextBox { Header = "Número de Referencia/Factura", PlaceholderText = "Referencia de transferencia / NCF" };
-        panelTransferencia.Children.Add(txtNumeroFactura);
-
         cmbPago.SelectionChanged += (s, e) =>
         {
             var metodo = (cmbPago.SelectedItem as ComboBoxItem)?.Tag?.ToString();
             panelCheque.Visibility = metodo == "Cheque" ? Visibility.Visible : Visibility.Collapsed;
-            panelTransferencia.Visibility = metodo == "Transferencia" ? Visibility.Visible : Visibility.Collapsed;
         };
         // Inicializar visibilidad al cargar
         var metodoInicial = (cmbPago.SelectedItem as ComboBoxItem)?.Tag?.ToString();
         panelCheque.Visibility = metodoInicial == "Cheque" ? Visibility.Visible : Visibility.Collapsed;
-        panelTransferencia.Visibility = metodoInicial == "Transferencia" ? Visibility.Visible : Visibility.Collapsed;
 
         // Prefill valores si es edición
         if (reciboExistente != null)
@@ -1437,9 +1533,9 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
             txtConcepto.Text = reciboExistente.Concepto ?? string.Empty;
 
             // Método de pago
-            if (reciboExistente.EsCheque)
+            if (reciboExistente.EsCheque == true)
                 cmbPago.SelectedIndex = 2;
-            else if (reciboExistente.EsTransferencia)
+            else if (reciboExistente.EsTransferencia == true)
                 cmbPago.SelectedIndex = 1;
             else
                 cmbPago.SelectedIndex = 0;
@@ -1458,7 +1554,7 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
         formPanel.Children.Add(txtMonto);
         formPanel.Children.Add(txtConcepto);
         formPanel.Children.Add(cmbPago);
-        formPanel.Children.Add(panelTransferencia);
+        formPanel.Children.Add(txtNumeroFactura);
         formPanel.Children.Add(panelCheque);
 
         var scrollViewer = new ScrollViewer
@@ -1532,8 +1628,8 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
                 EsEfectivo = esEfectivo,
                 EsTransferencia = esTransferencia,
                 EsCheque = esCheque,
-                // Campos adicionales seg?n m?todo de pago
-                NumeroFacturaNCF = pagoSeleccionado == "Transferencia" ? txtNumeroFactura.Text.Trim() : null,
+                // Número de Referencia/Factura siempre se guarda si tiene valor
+                NumeroFacturaNCF = !string.IsNullOrWhiteSpace(txtNumeroFactura.Text) ? txtNumeroFactura.Text.Trim() : null,
                 NumeroCheque = pagoSeleccionado == "Cheque" ? txtNumeroCheque.Text.Trim() : null,
                 Banco = pagoSeleccionado == "Cheque" ? txtBanco.Text.Trim() : null
             };
@@ -1718,9 +1814,9 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
                     Exento = exento,
                     Gravado = gravado,
                     Itbis = itbis,
-                    EsEfectivo = facturaConDatos.EsEfectivo,
-                    EsCheque = facturaConDatos.EsCheque,
-                    EsCredito = facturaConDatos.EsTransferencia,
+                    EsEfectivo = facturaConDatos.EsEfectivo ?? false,
+                    EsCheque = facturaConDatos.EsCheque ?? false,
+                    EsCredito = facturaConDatos.EsTransferencia ?? false,
                     NumeroCheque = facturaConDatos.NumeroCheque,
                     Banco = facturaConDatos.Banco
                 };
@@ -1920,7 +2016,7 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
         btnUsarSecuencia.Click += (s, e) =>
         {
             var siguiente = _ncfSequenceService.ObtenerSiguienteNumero();
-            if (siguiente.HasValue)
+            if ( siguiente.HasValue)
             {
                 txtNCFNumero.Text = siguiente.Value.ToString();
                 ActualizarEstadoSecuencia();
@@ -2060,9 +2156,9 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
         cmbMetodoPago.Items.Add(new ComboBoxItem { Content = "?? Cheque", Tag = "Cheque" });
         cmbMetodoPago.Items.Add(new ComboBoxItem { Content = "?? Crédito", Tag = "Credito" });
         
-        if (reciboSeleccionado.EsEfectivo)
+        if (reciboSeleccionado.EsEfectivo == true)
             cmbMetodoPago.SelectedIndex = 0;
-        else if (reciboSeleccionado.EsCheque)
+        else if (reciboSeleccionado.EsCheque == true)
             cmbMetodoPago.SelectedIndex = 1;
         else
             cmbMetodoPago.SelectedIndex = 2;
@@ -2236,7 +2332,7 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
                         // Actualizar datos en factura existente
                         facturaExistente.NoFactura = int.TryParse(numeroSolo, out var nf) ? nf : facturaExistente.NoFactura;
                         facturaExistente.NCFNumerico = long.TryParse("0000" + numeroSolo, out var ncfNum) ? ncfNum : facturaExistente.NCFNumerico;
-                        facturaExistente.TCFNumerico = tipo == "B14" ? 14 : tipo == "B15" ? 15 : 1;
+                        facturaExistente.TCFNumerico = tipo == "B01" ? 1 : tipo == "B14" ? 14 : tipo == "B15" ? 15 : null;
                         facturaExistente.Exento = exento;
                         facturaExistente.Gravado = gravado;
                         facturaExistente.Itbis = itbis;
@@ -2748,3 +2844,4 @@ public sealed partial class ReciboPage : Page, INotifyPropertyChanged
         }
     }
 }
+
