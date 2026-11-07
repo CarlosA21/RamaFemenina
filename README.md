@@ -1,11 +1,11 @@
-# ??? Rama Femenina Contra el Cáncer — Management System
+# Rama Femenina Contra el CÃ¡ncer â€” Management System
 
 <p align="center">
   <img src="Assets/icono2.ico" alt="Rama Femenina Logo" width="120"/>
 </p>
 
 <p align="center">
-  <strong>A comprehensive desktop management system built for <em>Rama Femenina Contra el Cáncer, Inc.</em></strong><br/>
+  <strong>A comprehensive desktop management system built for <em>Rama Femenina Contra el CÃ¡ncer, Inc.</em></strong><br/>
   A non-profit organization in Santiago, Dominican Republic, dedicated to supporting oncology patients since 1951.
 </p>
 
@@ -19,58 +19,58 @@
 
 ---
 
-## ?? Overview
+## Overview
 
-This Windows desktop application streamlines the day-to-day administrative operations of **Rama Femenina Contra el Cáncer**, managing patient records, donations, invoicing, receipts, checks, and financial reporting — all through a modern, intuitive interface.
+This Windows desktop application streamlines the day-to-day administrative operations of **Rama Femenina Contra el CÃ¡ncer**, managing patient records, donations, invoicing, receipts, checks, and financial reporting â€” all through a modern, intuitive interface.
 
-## ? Features
+## Features
 
-### ?? Patient Management
+###  Patient Management
 - Full CRUD operations for oncology patient records
 - Track patient status, medical record numbers, and demographic data
 - Search and filter by name, ID, area, and status
 
-### ?? Donations Tracking
+### Donations Tracking
 - Register and monitor donations linked to specific patients
 - Track donation progress with visual indicators (Pending / Partial / Completed)
 - Requested amount vs. received amount comparison with percentage tracking
 
-### ?? Invoice Management (NCF)
-- Generate invoices compliant with the **Dominican Republic NCF** (Número de Comprobante Fiscal) system
+### Invoice Management (NCF)
+- Generate invoices compliant with the **Dominican Republic NCF** (NÃºmero de Comprobante Fiscal) system
 - Support for multiple NCF types: **B14** (Special Regimes) and **B15** (Government)
 - Automatic NCF sequence management
 - Tax calculation (ITBIS) with exempt and taxable amount breakdown
 - Multiple payment methods: Cash, Check, and Credit
 
-### ?? Receipt Generation
+###  Receipt Generation
 - Income receipt creation and management
 - Support for Cash, Transfer, and Check payment methods
 - Bank and check number tracking
 
-### ?? Check Control
+###  Check Control
 - Complete check registry with number, amount, date, and payee
 - Concept tracking for each issued check
 
-### ?? Client Management
+###  Client Management
 - Client database with contact information, address, and RNC (tax ID)
 - Client association with invoices
 
-### ?? Reporting
+###  Reporting
 - Financial reports with PDF export
 - Invoice and receipt PDF generation optimized for **Epson LX-350** dot-matrix printers
-- Half-letter (5.5" × 8.5") format support
+- Half-letter (5.5" Ã— 8.5") format support
 - DevExpress Reporting integration
 
-### ?? Authentication & Role-Based Access
+###  Authentication & Role-Based Access
 - Secure login with **BCrypt** password hashing
 - Role-based permissions system (**Admin** / **Moderator**)
 - Automatic default admin user creation on first launch
 - Moderator role restrictions (e.g., hidden check management)
 
-### ?? Petty Cash (Caja Chica)
+### Petty Cash (Caja Chica)
 - Track small expenses with payee, amount, charge-to account, and concept
 
-## ??? Tech Stack
+##  Tech Stack
 
 | Layer | Technology |
 |---|---|
@@ -84,7 +84,7 @@ This Windows desktop application streamlines the day-to-day administrative opera
 | **Configuration** | Microsoft.Extensions.Configuration |
 | **DI Container** | Microsoft.Extensions.DependencyInjection |
 
-## ?? Project Structure
+## Project Structure
 
 ```
 RamaFemenina/
@@ -137,7 +137,7 @@ RamaFemenina/
 ??? appsettings.json                  # Connection string & configuration
 ```
 
-## ?? Getting Started
+##  Getting Started
 
 ### Prerequisites
 
@@ -189,14 +189,14 @@ RamaFemenina/
 
 ## ??? PDF & Printing
 
-The application generates PDFs optimized for **half-letter format** (5.5" × 8.5") to work seamlessly with **Epson LX-350** dot-matrix printers. PDF generation uses **iText 7** with:
+The application generates PDFs optimized for **half-letter format** (5.5" Ã— 8.5") to work seamlessly with **Epson LX-350** dot-matrix printers. PDF generation uses **iText 7** with:
 
 - Zero-margin layouts for precise printer alignment
 - Configurable viewer preferences (no scaling, simplex mode)
 - Automatic logo detection and ICO-to-PNG conversion
 - Spanish number-to-words conversion for receipt amounts
 
-## ?? Security
+##  Security
 
 - Passwords are hashed using **BCrypt** with a work factor of 12
 - Automatic migration from plain-text passwords to BCrypt hashes
@@ -204,7 +204,7 @@ The application generates PDFs optimized for **half-letter format** (5.5" × 8.5"
 - SQL injection prevention through Entity Framework parameterized queries
 - Transient fault handling with automatic retry policies (up to 5 retries)
 
-## ??? Database
+##  Database
 
 The application uses **SQL Server** with **Entity Framework Core 8** and includes:
 
@@ -214,7 +214,7 @@ The application uses **SQL Server** with **Entity Framework Core 8** and include
 - Command timeout configuration (60 seconds)
 - Lazy loading disabled for predictable query performance
 
-## ?? Key Dependencies
+##  Key Dependencies
 
 | Package | Version | Purpose |
 |---|---|---|
@@ -224,13 +224,13 @@ The application uses **SQL Server** with **Entity Framework Core 8** and include
 | DevExpress.Reporting.Core | 25.1.7 | Advanced reporting |
 | BCrypt.Net-Next | 4.0.3 | Password hashing |
 
-## ?? Contributing
+## Contributing
 
-This is a private project for **Rama Femenina Contra el Cáncer, Inc.** Contributions are managed internally.
+This is a private project for **Rama Femenina Contra el CÃ¡ncer, Inc.** Contributions are managed internally.
 
-## ?? License
+## License
 
-This project is proprietary software developed for Rama Femenina Contra el Cáncer, Inc. All rights reserved.
+This project is proprietary software developed for Rama Femenina Contra el CÃ¡ncer, Inc. All rights reserved.
 
 ---
 
